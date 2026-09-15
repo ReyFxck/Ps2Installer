@@ -4,160 +4,70 @@
 
 ## What it is
 
-Ps2Installer is a PlayStation 2 homebrew package builder. It automates release selection, downloads, PS2BBL/OSDMenu configuration and organization of a shared `APPS/` tree for OSDMenu and OPL.
-
-```text
-Memory Card / VMC
-├── BOOT/BOOT.ELF          <- PS2BBL
-└── SYS-CONF/
-    ├── PS2BBL.INI         <- hold R1 -> OSDMenu
-    └── OSDMENU.CNF
-
-Large storage
-└── APPS/
-    ├── OSDMenu/
-    ├── OPL/
-    ├── wLaunchELF/
-    ├── SNESticleRevive/
-    └── ...
-```
+Ps2Installer is a guided PlayStation 2 homebrew package builder. It automates release downloads, version selection, ELF organization and configuration generation for PS2BBL, OSDMenu and OPL.
 
 ## Requirements
 
-Before cloning and running Ps2Installer, install:
+- **Python 3.10+**;
+- **Git** when cloning from a terminal;
+- internet access for release detection and downloads.
 
-- **Python 3.10 or newer** — required to run the installer: https://www.python.org/downloads/
-- **Git** — required when following the `git clone` installation method: https://git-scm.com/downloads
-- an internet connection — used to resolve and download current homebrew releases.
-
-On Windows, enable **Add Python to PATH** in the Python installer. Verify the installation with:
+Check your installation:
 
 ```bash
 python --version
 git --version
 ```
 
-On systems where Python is exposed as `python3`, use:
+Use `python3` on systems where that is the Python command. On Windows, enable **Add Python to PATH** in the Python installer.
 
-```bash
-python3 --version
-```
+Git is optional if you use GitHub's **Code → Download ZIP** option.
 
-Git is optional if you download the repository with GitHub's **Code > Download ZIP** option instead of cloning it.
-
-After cloning or extracting the ZIP, install the Python dependencies:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-`py7zr`, used for `.7z` release extraction, is installed through this requirements file.
-
-### Installation with Git
+## Install
 
 ```bash
 git clone https://github.com/ReyFxck/Ps2Installer.git
 cd Ps2Installer
-python -m pip install -r requirements.txt
 python main.py
 ```
 
-## Usage
+You no longer need to pre-install `py7zr`. If a selected release uses `.7z`, Ps2Installer checks the dependency before downloading and automatically installs it with the same Python interpreter when necessary.
 
-The interactive flow asks for:
+Manual fallback:
 
-1. language;
-2. **output folder**;
-3. Memory Card type;
-4. application storage;
-5. optional homebrew;
-6. release channel when stable/beta/development choices exist;
-7. whether to download;
-8. whether to generate the final package.
+```bash
+python -m pip install -r requirements.txt
+```
 
-### Output folder
+## Interface
 
-Press Enter to keep everything in `./output`, or select a custom writable folder. Relative and absolute paths are accepted; `~` and environment variables are expanded.
+The terminal wizard includes:
 
-You can also bypass the question:
+- an ASCII Ps2Installer banner;
+- colored titles, success messages, warnings and errors;
+- screen clearing between major stages;
+- short explanations before each setup choice;
+- clear Stable, Beta/Prerelease and Development labels;
+- a review screen before downloading;
+- readable download/package progress.
+
+The normal flow asks for language, output path, Memory Card/VMC type, application storage, optional homebrew, release channels, downloads and final package generation.
+
+## Output
+
+Press Enter to use `./output` or choose another writable folder. You can also specify it directly:
 
 ```bash
 python main.py --output ~/PS2/Package
 ```
 
-`selection.json`, release downloads and `Ps2Installer_Package/` all use the selected output root.
+The selected output root contains `selection.json`, temporary downloads and `Ps2Installer_Package/`. The package separates the Memory Card/VMC contents from the application-storage contents and generates `README-COPY-HERE.txt` instructions for both.
 
-## Release channels
+## Boot/menu integration
 
-Ps2Installer does **not** assume the newest build is stable. The catalog defines stable, prerelease/beta and development policies per project, and the selected channel/version is carried into generated menu names.
+PS2BBL stays on the Memory Card/VMC. When supported by the selected storage mode, generated `PS2BBL.INI` maps **hold R1 → OSDMenu**.
 
-## Generated package
-
-For a MemCard PRO2 + MX4SIO setup, the output is similar to:
-
-```text
-Ps2Installer_Package/
-├── 1_MEMCARD_PRO2_VMC/
-│   ├── BOOT/BOOT.ELF
-│   ├── SYS-CONF/
-│   │   ├── PS2BBL.INI
-│   │   └── OSDMENU.CNF
-│   └── README-COPY-HERE.txt
-├── 2_MX4SIO/
-│   ├── APPS/
-│   │   ├── OSDMenu/
-│   │   ├── OPL/
-│   │   ├── wLaunchELF/
-│   │   └── ...
-│   └── README-COPY-HERE.txt
-├── README.txt
-└── manifest.json
-```
-
-Copy the **contents** of each destination folder to the corresponding device root; do not copy the outer `1_...`/`2_...` folder itself.
-
-## PS2BBL
-
-The installer downloads the current official PS2BBL package and selects the required variant automatically:
-
-- USB: `PS2`;
-- MMCE: `PS2_MMCE`;
-- MX4SIO: `PS2_MX4SIO`;
-- APA/PFS HDD: `PS2_HDD`.
-
-The selected binary is copied as `BOOT/BOOT.ELF`. Generated `PS2BBL.INI` uses normal boot -> OSDSYS and **hold R1 -> OSDMenu**.
-
-Copying a PS2BBL ELF to a normal Memory Card does not by itself install an exploit/autoboot. A compatible entry point for the user's setup is still required.
-
-### Internal exFAT HDD
-
-OSDMenu supports `ata:` for an internal exFAT HDD, but the official upstream PS2BBL common builds currently used by Ps2Installer do not expose the matching `ata:` application launch path. In that mode the package generator emits an explicit warning and avoids writing a misleading R1 target.
-
-## OSDMenu and OPL
-
-`SYS-CONF/OSDMENU.CNF` is generated with the real device paths and visible versions. Apps intended for OPL also receive a `title.cfg` beside the same ELF, so no duplicate ELF copy is needed.
-
-Example OPL metadata:
-
-```ini
-title=SNESticleRevive v1.0.7
-boot=SNESticle.elf
-```
-
-## Working files
-
-The selected output root contains:
-
-```text
-selection.json
-
-downloads/
-  <app>/
-    download/
-    extracted/
-
-Ps2Installer_Package/
-```
+OSDMenu and larger homebrew live on the selected application storage. `OSDMENU.CNF` is generated with actual paths and visible versions. Apps intended for OPL also receive a `title.cfg` next to the same ELF so the file does not need to be duplicated.
 
 ## Useful modes
 
@@ -166,18 +76,13 @@ python main.py --output /path/to/output
 python main.py --no-download
 python main.py --no-package
 python main.py --offline
+python main.py --no-color
+python main.py --no-clear
 python -m unittest discover -s tests -v
 ```
 
-An optional `GITHUB_TOKEN` environment variable can be supplied if the unauthenticated GitHub API rate limit is reached.
-
-## Related projects
-
-- PS2BBL: https://israpps.github.io/PlayStation2-Basic-BootLoader/
-- OSDMenu: https://github.com/pcm720/OSDMenu
-- Open PS2 Loader: https://github.com/ps2homebrew/Open-PS2-Loader
-- wLaunchELF: https://github.com/ps2homebrew/wLaunchELF
+Colors are also disabled automatically when output is not an interactive terminal or when the `NO_COLOR` environment variable is set.
 
 ## Safety
 
-Keep backups of important Memory Cards and read the generated package warnings before replacing boot-related files on real hardware.
+Ps2Installer only generates files and folders; it does not write directly to a PS2. Keep backups of important Memory Cards and read the generated instructions before replacing boot files.
