@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "homebrews": [
     {
       "id": "osdmenu",
@@ -7,7 +7,18 @@
       "repository": "pcm720/OSDMenu",
       "required": true,
       "default": true,
-      "channel_policy": "auto-detect",
+      "channel_policy": "stable-only",
+      "recommended_channel": "stable",
+      "folder": "OSDMenu",
+      "elf_names": ["osdmenu.elf"],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": ["^osdmenu-v.*\\.zip$"]
+        }
+      },
       "menu_targets": {
         "osdmenu": false,
         "opl": true
@@ -20,6 +31,23 @@
       "required": false,
       "default": true,
       "channel_policy": "ask-stable-or-prerelease",
+      "recommended_channel": "prerelease",
+      "folder": "OPL",
+      "elf_names": ["OPNPS2LD.ELF"],
+      "version_regex": "(?P<version>v\\d+\\.\\d+\\.\\d+(?:-Beta-\\d+-[0-9a-f]+)?)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": ["^OPNPS2LD-v.*\\.7z$"],
+          "exclude_asset_patterns": ["LANG", "VARIANT"]
+        },
+        "prerelease": {
+          "label": "Beta / prerelease",
+          "release_kind": "prerelease",
+          "asset_patterns": ["^OPNPS2LD\\.ELF$"]
+        }
+      },
       "menu_targets": {
         "osdmenu": true,
         "opl": false
@@ -32,6 +60,18 @@
       "required": false,
       "default": true,
       "channel_policy": "development-build",
+      "recommended_channel": "development",
+      "folder": "wLaunchELF",
+      "elf_names": ["BOOT.ELF"],
+      "channels": {
+        "development": {
+          "label": "Development",
+          "release_kind": "development",
+          "tag": "latest",
+          "asset_patterns": ["^BOOT\\.ELF$"],
+          "fallback_version_prefix": "dev"
+        }
+      },
       "menu_targets": {
         "osdmenu": true,
         "opl": true
@@ -43,7 +83,18 @@
       "repository": "ReyFxck/SNESticleRevive",
       "required": false,
       "default": false,
-      "channel_policy": "auto-detect",
+      "channel_policy": "stable-only",
+      "recommended_channel": "stable",
+      "folder": "SNESticleRevive",
+      "elf_names": ["SNESticle.elf", "SNESTICLE.ELF"],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+[a-z]?)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": ["^SNESticleRevive.*\\.zip$"]
+        }
+      },
       "menu_targets": {
         "osdmenu": true,
         "opl": true
