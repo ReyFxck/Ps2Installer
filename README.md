@@ -2,7 +2,7 @@
 
 > **Work in progress** — interactive installer/package builder for PlayStation 2 homebrew.
 
-Ps2Installer is being built around **PS2BBL + OSDMenu + a shared `APPS/` library**. The goal is to automate release selection, downloading, configuration and installation so the same homebrew collection can later be exposed to OSDMenu, Open PS2 Loader and other compatible launchers.
+Ps2Installer automates a setup built around **PS2BBL + OSDMenu + a shared `APPS/` library**. It resolves current releases, keeps stable/beta/development channels distinct, downloads the selected binaries and builds device-specific folders that can be copied to the PS2 setup.
 
 ## 🌐 Documentation
 
@@ -10,16 +10,17 @@ Ps2Installer is being built around **PS2BBL + OSDMenu + a shared `APPS/` library
 - 🇺🇸 [English](docs/README.en.md)
 - 🇪🇸 [Español](docs/README.es.md)
 
-## Planned PS2 layout
+## Layout
 
 ```text
-Memory Card
-└── PS2BBL + configuration
-        │
-        └── Hold R1 → OSDMenu
-                         │
-Large storage            │
-└── APPS/ ◀──────────────┘
+Memory Card / VMC
+├── BOOT/BOOT.ELF          <- PS2BBL
+└── SYS-CONF/
+    ├── PS2BBL.INI         <- hold R1 -> OSDMenu
+    └── OSDMENU.CNF
+
+Large storage
+└── APPS/
     ├── OSDMenu/
     ├── OPL/
     ├── wLaunchELF/
@@ -27,23 +28,26 @@ Large storage            │
     └── ...
 ```
 
-**PS2BBL belongs on the Memory Card.** OSDMenu and larger homebrew files are intended to live on MMCE, MX4SIO, USB or HDD storage.
+The same `APPS/` copy is used by OSDMenu and, when applicable, OPL through generated `title.cfg` files.
 
 ## Current status
 
 The current prototype already:
 
-- asks for language, Memory Card type and application storage;
-- resolves current releases directly from GitHub;
-- keeps **stable, prerelease/beta and development** builds distinct;
-- displays the detected version before installation;
-- offers optional homebrew with `Y/N` prompts;
-- downloads selected release assets;
-- verifies SHA-256 when GitHub publishes a digest;
-- extracts `.zip`, direct `.ELF` and `.7z` assets;
-- records resolved versions, channels, assets and ELF candidates in `output/selection.json`.
+- asks for language, **output folder**, Memory Card type and application storage;
+- lets the user keep output in `./output` or choose any writable custom folder;
+- supports `--output PATH` for a non-interactive output location;
+- resolves releases directly from GitHub;
+- keeps **stable, beta/prerelease and development** builds distinct;
+- downloads assets, verifies SHA-256 when available and extracts `.zip` / `.7z` / direct `.ELF` files;
+- downloads the official PS2BBL package and selects its `PS2`, `PS2_MMCE`, `PS2_MX4SIO` or `PS2_HDD` variant according to the selected storage;
+- generates `PS2BBL.INI` with **R1 -> OSDMenu** and normal boot returning to OSDSYS;
+- generates `OSDMENU.CNF` with visible application versions;
+- generates OPL `title.cfg` files from the same catalog;
+- generates separate Memory Card/VMC and application-storage folders plus copy instructions;
+- records the full result in `selection.json` and `Ps2Installer_Package/manifest.json`.
 
-Still to be implemented: final PS2 package generation, PS2BBL configuration, OSDMenu `OSDMENU.CNF`, OPL `title.cfg`, device-specific output folders and generated installation instructions.
+Internal HDD exFAT (`ata:`) is currently packaged for OSDMenu/APPS, but the official upstream PS2BBL common builds do not provide the matching `ata:` launch path. Ps2Installer therefore emits an explicit warning instead of silently producing a broken R1 boot setup for that mode.
 
 ## Run
 
@@ -59,12 +63,14 @@ Python **3.10+** is recommended.
 Useful modes:
 
 ```bash
+python main.py --output /path/to/package-output
 python main.py --no-download
+python main.py --no-package
 python main.py --offline
 python -m unittest discover -s tests -v
 ```
 
-`py7zr` is used for `.7z` extraction (for example, some OPL stable packages). ZIP and direct ELF handling use the Python standard library.
+`py7zr` is used for `.7z` extraction. ZIP and direct ELF handling use the Python standard library.
 
 If the unauthenticated GitHub API rate limit is reached, an optional `GITHUB_TOKEN` environment variable can be supplied.
 
