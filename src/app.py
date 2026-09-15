@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import LANGUAGES, MEMORY_CARDS, STORAGES, TEXT
-from .dependencies import DependencyError, ensure_py7zr, module_available
+from .dependencies import (DependencyError, ensure_py7zr, find_native_7z, module_available, running_on_android)
 from .downloads import DownloadError, download_release
 from .package import PackageError, build_package
 from .releases import GitHubError, GitHubReleaseResolver, ResolvedRelease
@@ -18,6 +18,16 @@ CATALOG_PATH = ROOT / "catalog" / "homebrews.json"
 DEFAULT_OUTPUT_DIR = ROOT / "output"
 REQUIREMENTS_PATH = ROOT / "requirements.txt"
 TOTAL_STEPS = 6
+
+
+def localized(language: str, pt: str, en: str, es: str) -> str:
+    language = language.lower()
+    if language.startswith("pt"):
+        return pt
+    if language.startswith("es"):
+        return es
+    return en
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build a PS2 homebrew installation package.")
@@ -304,7 +314,27 @@ def main() -> None:
         needs_7z = any(resolved and resolved.archive_type == "7z" for _, resolved in selected)
         if needs_7z:
             info(t["dependency_check"])
-            if not module_available("py7zr"):
+
+            native_7z = find_native_7z()
+
+            if native_7z:
+                ok(localized(
+                    language,
+                    f"Backend 7z nativo encontrado: {native_7z}",
+                    f"Native 7z backend found: {native_7z}",
+                    f"Backend 7z nativo encontrado: {native_7z}",
+                ))
+            elif module_available("py7zr"):
+                ok(t["dependency_ok"])
+            elif running_on_android():
+                dependency_ready = False
+                warn(localized(
+                    language,
+                    "7-Zip não encontrado. No Termux, instale com: pkg install 7zip",
+                    "7-Zip was not found. On Termux install it with: pkg install 7zip",
+                    "No se encontró 7-Zip. En Termux instálelo con: pkg install 7zip",
+                ))
+            else:
                 info(t["dependency_install"])
                 try:
                     ensure_py7zr(REQUIREMENTS_PATH)
@@ -315,8 +345,6 @@ def main() -> None:
                 else:
                     dependency_ready = True
                     ok(t["dependency_ok"])
-            else:
-                ok(t["dependency_ok"])
 
         for app, resolved in selected:
             if resolved is None:
@@ -334,7 +362,12 @@ def main() -> None:
                 error(t["download_failed"].format(name=app["name"], error=exc))
             write_plan(plan, plan_path)
     else:
-        info("Skipped / Pulado / Omitido")
+        info(localized(
+            language,
+            "Etapa omitida.",
+            "Step skipped.",
+            "Etapa omitida.",
+        ))
 
     section(6, TOTAL_STEPS, t["step_package"])
     if should_download and not args.no_package and yes_no(t["generate_package"], default=True):
@@ -360,7 +393,12 @@ def main() -> None:
             write_plan(plan, plan_path)
             error(t["package_failed"].format(error=exc))
     else:
-        info("Skipped / Pulado / Omitido")
+        info(localized(
+            language,
+            "Etapa omitida.",
+            "Step skipped.",
+            "Etapa omitida.",
+        ))
 
     print()
     ok(t["done"])

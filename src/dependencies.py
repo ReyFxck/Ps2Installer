@@ -2,9 +2,28 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+
+def find_native_7z() -> str | None:
+    for name in ("7z", "7zz", "7za", "7zr"):
+        command = shutil.which(name)
+        if command:
+            return command
+    return None
+
+
+def running_on_android() -> bool:
+    return bool(
+        os.environ.get("ANDROID_ROOT")
+        or os.environ.get("ANDROID_DATA")
+        or os.environ.get("TERMUX_VERSION")
+        or hasattr(sys, "getandroidapilevel")
+    )
 
 
 class DependencyError(RuntimeError):

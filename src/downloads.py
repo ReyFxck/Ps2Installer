@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import subprocess
 import urllib.error
 import urllib.request
 import zipfile
@@ -96,24 +97,87 @@ def _safe_extract_zip(archive: Path, destination: Path) -> None:
         zip_file.extractall(destination)
 
 
+def _native_7z_command() -> str | None:
+    for name in ("7z", "7zz", "7za", "7zr"):
+        command = shutil.which(name)
+        if command:
+            return command
+    return None
+
+
 def _safe_extract_7z(archive: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    root = destination.resolve()
+
+    native_7z = _native_7z_command()
+    if native_7z:
+        listing = subprocess.run(
+            [native_7z, "l", "-slt", "-ba", str(archive)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        if listing.returncode != 0:
+            detail = (listing.stderr or listing.stdout or "").strip()
+            raise DownloadError(
+                f"7z could not read {archive.name}: "
+                f"{detail or f'exit status {listing.returncode}'}"
+            )
+
+        # Validate paths before extraction.
+        for line in listing.stdout.splitlines():
+            if not line.startswith("Path = "):
+                continue
+
+            name = line[len("Path = "):].strip()
+            if not name:
+                continue
+
+            target = (destination / name).resolve()
+            if target != root and root not in target.parents:
+                raise DownloadError(f"Unsafe 7z entry: {name}")
+
+        completed = subprocess.run(
+            [
+                native_7z,
+                "x",
+                "-y",
+                "-bd",
+                "-bso0",
+                "-bsp0",
+                str(archive),
+                f"-o{destination}",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout or "").strip()
+            raise DownloadError(
+                f"7z extraction failed for {archive.name}: "
+                f"{detail or f'exit status {completed.returncode}'}"
+            )
+
+        return
+
     try:
         import py7zr  # type: ignore
     except ImportError as exc:
         raise DownloadError(
-            "The 7z file was downloaded, but extraction requires py7zr. "
-            "Run: python -m pip install -r requirements.txt"
+            "No 7z extraction backend was found. "
+            "Install 7-Zip or py7zr. "
+            "Termux/Android: pkg install 7zip"
         ) from exc
 
-    destination.mkdir(parents=True, exist_ok=True)
-    root = destination.resolve()
     with py7zr.SevenZipFile(archive, mode="r") as seven_zip:
         for name in seven_zip.getnames():
             target = (destination / name).resolve()
             if target != root and root not in target.parents:
                 raise DownloadError(f"Unsafe 7z entry: {name}")
         seven_zip.extractall(path=destination)
-
 
 def _find_elf_candidates(root: Path, preferred_names: list[str]) -> list[Path]:
     if not root.exists():
