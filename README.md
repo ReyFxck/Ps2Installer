@@ -1,18 +1,16 @@
 # Ps2Installer
 
-> **Work in progress** — an interactive installer/package builder for PlayStation 2 homebrew.
+> **Work in progress** — interactive installer/package builder for PlayStation 2 homebrew.
 
-Ps2Installer aims to automate a setup built around **PS2BBL + OSDMenu + a shared `APPS/` library**, so the same homebrew collection can be exposed to OSDMenu, Open PS2 Loader and, later, other supported launchers without manually rebuilding configuration files.
+Ps2Installer is being built around **PS2BBL + OSDMenu + a shared `APPS/` library**. The goal is to automate release selection, downloading, configuration and installation so the same homebrew collection can later be exposed to OSDMenu, Open PS2 Loader and other compatible launchers.
 
 ## 🌐 Documentation
-
-Choose your language:
 
 - 🇧🇷 [Português (Brasil)](docs/README.pt-BR.md)
 - 🇺🇸 [English](docs/README.en.md)
 - 🇪🇸 [Español](docs/README.es.md)
 
-## What is planned?
+## Planned PS2 layout
 
 ```text
 Memory Card
@@ -29,34 +27,55 @@ Large storage            │
     └── ...
 ```
 
-The installer is being designed to:
-
-- ask what kind of Memory Card is being used;
-- ask where OSDMenu and homebrew should live (MMCE, MX4SIO, USB, HDD, etc.);
-- prepare PS2BBL so **holding R1 launches OSDMenu**;
-- offer homebrew one by one with `Y/N` selection;
-- distinguish stable, beta/prerelease and development builds instead of calling everything “latest”;
-- keep version information in generated menu entries;
-- generate OSDMenu entries and OPL `title.cfg` files from the same catalog;
-- create clearly separated output folders and copy instructions for each PS2 device.
+**PS2BBL belongs on the Memory Card.** OSDMenu and larger homebrew files are intended to live on MMCE, MX4SIO, USB or HDD storage.
 
 ## Current status
 
-The repository is at the initial implementation stage. The first CLI is intentionally a **setup planner**: it records the user's Memory Card, storage and homebrew choices while the downloader/package generator is implemented next.
+The current prototype already:
 
-### Run the current prototype
+- asks for language, Memory Card type and application storage;
+- resolves current releases directly from GitHub;
+- keeps **stable, prerelease/beta and development** builds distinct;
+- displays the detected version before installation;
+- offers optional homebrew with `Y/N` prompts;
+- downloads selected release assets;
+- verifies SHA-256 when GitHub publishes a digest;
+- extracts `.zip`, direct `.ELF` and `.7z` assets;
+- records resolved versions, channels, assets and ELF candidates in `output/selection.json`.
+
+Still to be implemented: final PS2 package generation, PS2BBL configuration, OSDMenu `OSDMENU.CNF`, OPL `title.cfg`, device-specific output folders and generated installation instructions.
+
+## Run
 
 ```bash
 git clone https://github.com/ReyFxck/Ps2Installer.git
 cd Ps2Installer
+python -m pip install -r requirements.txt
 python main.py
 ```
 
-Python **3.10+** is recommended. The current prototype uses only the Python standard library.
+Python **3.10+** is recommended.
+
+Useful modes:
+
+```bash
+python main.py --no-download
+python main.py --offline
+python -m unittest discover -s tests -v
+```
+
+`py7zr` is used for `.7z` extraction (for example, some OPL stable packages). ZIP and direct ELF handling use the Python standard library.
+
+If the unauthenticated GitHub API rate limit is reached, an optional `GITHUB_TOKEN` environment variable can be supplied.
 
 ## Upstream projects
 
-Ps2Installer integrates with existing PS2 homebrew rather than replacing it. Relevant upstream projects include [PS2BBL](https://israpps.github.io/PlayStation2-Basic-BootLoader/), [OSDMenu](https://github.com/pcm720/OSDMenu) and [Open PS2 Loader](https://github.com/ps2homebrew/Open-PS2-Loader).
+Ps2Installer integrates with existing projects rather than replacing them:
+
+- [PS2BBL](https://israpps.github.io/PlayStation2-Basic-BootLoader/)
+- [OSDMenu](https://github.com/pcm720/OSDMenu)
+- [Open PS2 Loader](https://github.com/ps2homebrew/Open-PS2-Loader)
+- [wLaunchELF](https://github.com/ps2homebrew/wLaunchELF)
 
 ---
 
