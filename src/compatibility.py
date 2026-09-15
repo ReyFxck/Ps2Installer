@@ -61,18 +61,42 @@ def check_compatibility(plan: dict[str, Any]) -> list[dict[str, str]]:
             ),
         ))
 
-    libretro_cores = sorted(app_id for app_id in apps if app_id.startswith("libretro-"))
-    if "retroarch" in apps and libretro_cores:
-        findings.append(_finding(
-            "retroarch-duplicate-cores",
-            "info",
-            _loc(
-                language,
-                "O pacote completo do RetroArch e cores Libretro individuais foram selecionados juntos. É válido, mas pode duplicar cores/arquivos.",
-                "The full RetroArch bundle and individual Libretro cores are both selected. This is valid, but may duplicate cores/files.",
-                "El paquete completo de RetroArch y cores Libretro individuales están seleccionados juntos. Es válido, pero puede duplicar cores/archivos.",
-            ),
-        ))
+
+    safety_notes = {
+        "mechapwn": (
+            "mechapwn-hardware-config",
+            "MechaPwn altera configuração/região do MechaCon em modelos suportados. Confira compatibilidade e faça backup das informações do console antes de usar.",
+            "MechaPwn changes MechaCon/region configuration on supported models. Verify compatibility and back up console information before use.",
+            "MechaPwn modifica la configuración/región de MechaCon en modelos compatibles. Verifica compatibilidad y respalda la información de la consola antes de usarlo.",
+        ),
+        "memory-card-annihilator": (
+            "memory-card-annihilator-destructive",
+            "Memory Card Annihilator pode formatar e sobrescrever cartões. Faça dump/backup antes de qualquer operação destrutiva.",
+            "Memory Card Annihilator can format and overwrite cards. Make a dump/backup before destructive operations.",
+            "Memory Card Annihilator puede formatear y sobrescribir tarjetas. Haz un dump/backup antes de operaciones destructivas.",
+        ),
+        "hddchecker": (
+            "hddchecker-destructive",
+            "HDDChecker possui testes/operações destrutivas como zero-fill. Leia as opções com cuidado antes de executá-las no HDD do PS2.",
+            "HDDChecker includes destructive tests/operations such as zero-fill. Read the options carefully before running them on the PS2 HDD.",
+            "HDDChecker incluye pruebas/operaciones destructivas como zero-fill. Lee las opciones con cuidado antes de ejecutarlas en el HDD de PS2.",
+        ),
+        "opentuna-installer": (
+            "opentuna-installer-card-changes",
+            "O OpenTuna Installer altera pastas da Memory Card e pode remover estruturas conflitantes. Faça backup do cartão antes da instalação.",
+            "The OpenTuna Installer changes Memory Card folders and may remove conflicting layouts. Back up the card before installation.",
+            "OpenTuna Installer modifica carpetas de la Memory Card y puede eliminar estructuras en conflicto. Haz una copia de seguridad antes de instalar.",
+        ),
+        "hdlgameinstaller": (
+            "hdlgameinstaller-apaext",
+            "HDLGameInstaller não deve ser usado em HDD formatado com APAEXT/ToxicOS; o upstream alerta para risco de perda de dados.",
+            "HDLGameInstaller must not be used on APAEXT/ToxicOS-formatted HDDs; upstream warns of possible data loss.",
+            "HDLGameInstaller no debe usarse en HDD con APAEXT/ToxicOS; upstream advierte sobre posible pérdida de datos.",
+        ),
+    }
+    for app_id, (rule, pt, en, es) in safety_notes.items():
+        if app_id in apps:
+            findings.append(_finding(rule, "warning", _loc(language, pt, en, es)))
 
     if "opl" in apps and "oplevolution" in apps:
         findings.append(_finding(

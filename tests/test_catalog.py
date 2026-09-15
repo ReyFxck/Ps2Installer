@@ -36,6 +36,27 @@ class CatalogTests(unittest.TestCase):
                 self.assertTrue(cfg.get("url"))
                 self.assertTrue(cfg.get("asset_name"))
 
+    def test_only_complete_retroarch_is_exposed(self) -> None:
+        ids = {app["id"] for app in self.apps}
+        self.assertIn("retroarch", ids)
+        self.assertFalse(any(app_id.startswith("libretro-") for app_id in ids))
+
+    def test_manual_entries_have_visible_project_sources(self) -> None:
+        for app in self.apps:
+            if app.get("source_type") != "manual":
+                continue
+            url = str(app.get("source_url") or "")
+            self.assertTrue(url.startswith(("https://", "http://")), app["id"])
+
+    def test_expanded_projects_are_present(self) -> None:
+        ids = {app["id"] for app in self.apps}
+        for app_id in {
+            "sms", "ps2ident", "osd-xmb", "cheat-device-ps2",
+            "hdlgameinstaller", "kelfbinder", "opentuna-installer",
+            "freedvdboot", "memory-card-annihilator", "hddchecker", "mechapwn",
+        }:
+            self.assertIn(app_id, ids)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -109,6 +109,48 @@ _SPECIAL_RECIPES: dict[str, dict[str, Any]] = {
             "wOPL releases may contain multiple variants; Ps2Installer does not guess which variant is appropriate.",
         ],
     },
+    "osd-xmb": {
+        "id": "osd-xmb-manual",
+        "mode": "manual",
+        "notes": [
+            "Keep the XMB launcher files and OSDXMB assets/plugins in the layout documented by OSD-XMB; do not flatten the package into one APPS folder.",
+        ],
+    },
+    "cheat-device-ps2": {
+        "id": "cheat-device-manual",
+        "mode": "manual",
+        "notes": [
+            "Keep CheatDevicePS2.ini and the cheat database with the ELF as required by the upstream release.",
+        ],
+    },
+    "hdlgameinstaller": {
+        "id": "hdlgameinstaller-manual",
+        "mode": "manual",
+        "notes": [
+            "Do not use on APAEXT/ToxicOS-formatted HDDs; upstream warns that data loss can occur.",
+        ],
+    },
+    "kelfbinder": {
+        "id": "kelfbinder-manual",
+        "mode": "manual",
+        "notes": [
+            "Advanced DVD Player/System Update KELF manager; follow the console- and region-specific upstream workflow.",
+        ],
+    },
+    "opentuna-installer": {
+        "id": "opentuna-installer-manual",
+        "mode": "manual",
+        "notes": [
+            "Back up the Memory Card first; the installer can replace/remove conflicting APPS, FORTUNA and OPENTUNA folders.",
+        ],
+    },
+    "freedvdboot": {
+        "id": "freedvdboot-manual",
+        "mode": "manual",
+        "notes": [
+            "FreeDVDBoot is a DVD exploit image/workflow, not an APPS ELF deployment. Use the image matching the supported console/DVD Player setup.",
+        ],
+    },
 }
 
 

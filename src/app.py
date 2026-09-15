@@ -125,6 +125,10 @@ def choose_optional_apps(apps: list[dict[str, Any]], text: dict[str, str]) -> tu
         description = str(app.get("description") or "").strip()
         suffix = f" — {description}" if description else ""
         print(f"  [{index}] {app['name']}{marker_text}{suffix}")
+        if source_type == "manual":
+            source_url = str(app.get("source_url") or "").strip()
+            if source_url:
+                print(f"      {text['source_label']}: {source_url}")
 
     info(text["multi_help"])
     while True:
@@ -598,7 +602,8 @@ def main() -> None:
     for app in chosen_apps:
         source_type = str(app.get("source_type") or "github")
         if source_type == "manual":
-            info(t["manual_selected"].format(name=app["name"]))
+            source_url = str(app.get("source_url") or "-")
+            info(t["manual_selected"].format(name=app["name"], url=source_url))
             selected.append((app, None))
             continue
         if source_type == "local":
@@ -622,7 +627,7 @@ def main() -> None:
         selected.append((app, chosen))
 
     plan: dict[str, Any] = {
-        "schema_version": 7,
+        "schema_version": 9,
         "language": language,
         "output_root": str(output_root),
         "memory_card": card,
@@ -666,7 +671,8 @@ def main() -> None:
             optional_count += 1
             source_type = str(app.get("source_type") or "github")
             if source_type == "manual":
-                info(f"{app['name']} [{t['manual_marker']}]")
+                source_url = str(app.get("source_url") or "-")
+                info(f"{app['name']} [{t['manual_marker']}] — {t['source_label']}: {source_url}")
             elif source_type == "local":
                 ok(f"{app['name']} [{t['local_marker']}]")
             else:

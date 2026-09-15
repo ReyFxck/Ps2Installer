@@ -39,6 +39,26 @@ class CompatibilityTests(unittest.TestCase):
         findings = check_compatibility(plan)
         self.assertIn("nhddl-neutrino", {item["rule"] for item in findings})
 
+    def test_destructive_manual_tools_emit_safety_warnings(self) -> None:
+        plan = {
+            "language": "en",
+            "homebrews": [
+                {"id": "mechapwn"},
+                {"id": "memory-card-annihilator"},
+                {"id": "hddchecker"},
+                {"id": "opentuna-installer"},
+                {"id": "hdlgameinstaller"},
+            ],
+            "storage": {"id": "usb"},
+            "boot": {"id": "existing"},
+        }
+        rules = {item["rule"] for item in check_compatibility(plan)}
+        self.assertIn("mechapwn-hardware-config", rules)
+        self.assertIn("memory-card-annihilator-destructive", rules)
+        self.assertIn("hddchecker-destructive", rules)
+        self.assertIn("opentuna-installer-card-changes", rules)
+        self.assertIn("hdlgameinstaller-apaext", rules)
+
     def test_hdd_exfat_and_system_update_emit_separate_findings(self) -> None:
         plan = {
             "language": "en",
