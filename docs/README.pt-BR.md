@@ -4,7 +4,7 @@
 
 ## O que é
 
-Ps2Installer é um instalador/gerador de pacote para homebrews de PlayStation 2. A ideia é reduzir a instalação manual de ELFs, arquivos de configuração e entradas de menu.
+Ps2Installer é um instalador/gerador de pacote para homebrews de PlayStation 2. A proposta é automatizar o trabalho de escolher versões, baixar ELFs, montar configurações e organizar os mesmos aplicativos para diferentes launchers.
 
 O fluxo planejado é:
 
@@ -23,161 +23,202 @@ Armazenamento maior           │
     └── ...
 ```
 
-O **PS2BBL fica no Memory Card**. O OSDMenu e os homebrews, que ocupam mais espaço, ficam no armazenamento escolhido pelo usuário, como MMCE, MX4SIO, USB ou HDD.
+O **PS2BBL fica no Memory Card**. O OSDMenu e os homebrews maiores devem ficar no armazenamento escolhido pelo usuário, como MMCE, MX4SIO, USB ou HDD.
 
-A biblioteca `APPS/` será compartilhada sempre que possível. Assim, o mesmo ELF poderá aparecer no OSDMenu e também na lista de aplicativos do OPL sem manter cópias duplicadas.
+A meta é compartilhar uma única biblioteca `APPS/` sempre que possível. Assim, o mesmo ELF poderá aparecer no OSDMenu e no menu de APPS do OPL sem manter cópias duplicadas.
 
 ## Estado atual
 
-O projeto está no começo. A versão atual é um **planejador interativo**: pergunta o hardware, o armazenamento e quais homebrews o usuário quer, e salva as escolhas em `output/selection.json`.
+O protótipo já consegue:
 
-**Ainda não baixa, extrai nem copia ELFs.** Isso será implementado na próxima etapa. O aviso existe para evitar que alguém trate o protótipo atual como um instalador pronto para uso no console.
+- perguntar idioma, tipo de Memory Card e armazenamento dos aplicativos;
+- consultar os releases atuais diretamente no GitHub;
+- separar corretamente **stable**, **beta/prerelease** e **development**;
+- mostrar a versão encontrada antes da instalação;
+- perguntar `Y/N` para cada homebrew opcional;
+- baixar o asset correto do release escolhido;
+- verificar SHA-256 quando o GitHub fornece o digest;
+- extrair `.zip`, `.7z` e trabalhar com `.ELF` direto;
+- procurar ELFs dentro dos pacotes extraídos;
+- registrar tudo em `output/selection.json`.
+
+Ainda falta gerar o pacote final para o PS2: configuração do PS2BBL, `OSDMENU.CNF`, `title.cfg`, árvores separadas para cada dispositivo e READMEs finais de cópia.
 
 ## Requisitos
 
 - Python 3.10 ou mais recente recomendado;
-- Git, apenas se você quiser clonar o repositório pelo terminal;
-- nenhuma biblioteca Python externa é necessária nesta etapa.
+- conexão com a internet para detectar e baixar releases;
+- `py7zr` para extrair pacotes `.7z`.
+
+Instale a dependência com:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+ZIPs e ELFs diretos são tratados pela biblioteca padrão do Python. O `py7zr` é necessário principalmente para projetos que distribuem certas versões apenas em `.7z`, como o OPL stable atual.
 
 ## Instalação no PC
-
-Clone o repositório:
 
 ```bash
 git clone https://github.com/ReyFxck/Ps2Installer.git
 cd Ps2Installer
-```
-
-Ou baixe o ZIP do repositório pelo GitHub e extraia-o em qualquer pasta.
-
-Execute:
-
-```bash
+python -m pip install -r requirements.txt
 python main.py
 ```
 
-Em alguns sistemas o comando pode ser:
+Em alguns sistemas o executável pode ser `python3`.
 
-```bash
-python3 main.py
-```
+## Como usar
 
-## Como usar o protótipo
+Ao executar `python main.py`, o instalador primeiro pergunta o idioma e depois:
 
-Ao iniciar, escolha o idioma. Em seguida, o programa pergunta qual Memory Card você utiliza, por exemplo:
+1. qual tipo de Memory Card você usa;
+2. onde OSDMenu e os homebrews devem ficar;
+3. quais homebrews você quer instalar;
+4. quando existir mais de um canal, qual versão/canal deve ser usado;
+5. se os arquivos selecionados devem ser baixados agora.
 
-- Memory Card padrão / MagicGate compatível;
-- SD2PSX;
-- MemCard PRO2;
-- PSxMemCard Gen2;
-- outro Memory Card compatível com MMCE.
-
-Depois escolha onde o OSDMenu e os homebrews devem ficar:
-
-- MMCE;
-- MX4SIO;
-- USB;
-- HDD interno exFAT;
-- HDD interno APA/PFS.
-
-Por fim, o programa passa pelo catálogo de homebrews. Componentes obrigatórios são incluídos automaticamente; aplicativos opcionais usam perguntas `Y/N`.
-
-Exemplo:
+Exemplo do comportamento esperado para um projeto com mais de um canal:
 
 ```text
-Open PS2 Loader (ask-stable-or-prerelease)
+Open PS2 Loader
+Versões disponíveis:
+  - Stable: v1.x.x (stable)
+  - Beta / prerelease: v1.x.x-Beta-xxxx (prerelease)
+
 Instalar Open PS2 Loader? [Y/n]: y
 
-wLaunchELF (development-build)
-Instalar wLaunchELF? [Y/n]: y
-
-SNESticleRevive (auto-detect)
-Instalar SNESticleRevive? [y/N]: n
+Escolha o canal para Open PS2 Loader
+  [1] Stable: ...
+  [2] Beta / prerelease: ... *
+> 
 ```
 
-As escolhas são gravadas em:
+O `*` indica o canal recomendado pelo catálogo, mas o usuário continua podendo escolher o outro.
+
+## Stable, beta e development
+
+O Ps2Installer **não considera automaticamente a build mais nova como stable**.
+
+Cada projeto possui regras no `catalog/homebrews.json`. Por exemplo:
+
+- OSDMenu: release stable;
+- OPL: oferece stable e prerelease separadamente;
+- wLaunchELF: build de desenvolvimento publicada como `latest`;
+- SNESticleRevive: release stable.
+
+Quando um projeto usa uma tag genérica como `latest` e não publica um número de versão útil, o instalador usa uma identificação de build baseada na data, em vez de inventar uma versão estável.
+
+## Downloads
+
+Os downloads ficam temporariamente organizados em:
+
+```text
+output/downloads/
+├── osdmenu/
+├── opl/
+├── wlaunchelf/
+└── snesticlerevive/
+```
+
+Cada aplicativo pode conter:
+
+```text
+download/   arquivo original do release
+extracted/  conteúdo extraído ou ELF preparado
+```
+
+O instalador também registra os candidatos `.ELF` encontrados. Essa informação será usada na próxima etapa para montar automaticamente `APPS/<Aplicativo>/`.
+
+## Arquivo `selection.json`
+
+O arquivo:
 
 ```text
 output/selection.json
 ```
 
-Esse arquivo será usado pelas próximas etapas do projeto para baixar versões, montar configurações e gerar as pastas finais.
+registra:
 
-## Stable, beta e builds de desenvolvimento
+- Memory Card escolhido;
+- armazenamento escolhido;
+- aplicativos selecionados;
+- canal de cada aplicativo;
+- versão detectada;
+- tag/release de origem;
+- nome e URL do asset;
+- resultado do download;
+- ELFs encontrados após a extração.
 
-Ps2Installer não deve simplesmente chamar qualquer build mais recente de “última versão”. O catálogo guarda uma política por projeto.
+Ele funciona como o plano de instalação para as próximas etapas do gerador.
 
-Quando um projeto oferecer canais diferentes, o instalador deverá deixar isso explícito, por exemplo:
+## Modos úteis
 
-```text
-Open PS2 Loader
+Resolver as versões e criar o plano, mas não baixar:
 
-[1] Stable
-[2] Beta / prerelease
+```bash
+python main.py --no-download
 ```
 
-Projetos que só publicam builds de desenvolvimento serão mostrados como tal. A versão real deverá ser detectada da fonte original e também poderá aparecer no nome gerado para OSDMenu, OPL e outros launchers compatíveis.
+Criar apenas um plano local sem consultar GitHub:
 
-## Integração com OPL
-
-O OPL suporta aplicativos organizados em subpastas de `APPS/` com um `title.cfg` ao lado do ELF. Um pacote futuro gerado pelo Ps2Installer poderá ficar assim:
-
-```text
-APPS/
-└── SNESticleRevive/
-    ├── SNESticle.elf
-    └── title.cfg
+```bash
+python main.py --offline
 ```
 
-Com um arquivo semelhante a:
+Executar os testes:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Se o limite da API pública do GitHub for atingido, você pode definir opcionalmente a variável de ambiente `GITHUB_TOKEN` antes de executar o instalador.
+
+## O que será gerado no PS2
+
+A meta da próxima fase é produzir algo semelhante a:
+
+```text
+output/
+├── 1_MEMORY_CARD/
+│   ├── PS2BBL / configuração
+│   ├── SYS-CONF/
+│   └── README-COPY-TO-MEMORY-CARD.txt
+│
+└── 2_MX4SIO/
+    ├── APPS/
+    │   ├── OSDMenu/
+    │   ├── OPL/
+    │   ├── wLaunchELF/
+    │   └── ...
+    └── README-COPY-TO-MX4SIO.txt
+```
+
+A segunda pasta será adaptada automaticamente para MMCE, MX4SIO, USB, HDD exFAT ou HDD APA/PFS.
+
+## Integração planejada com OSDMenu e OPL
+
+Do mesmo item do catálogo deverão sair as duas configurações.
+
+Exemplo para OPL:
 
 ```ini
 title=SNESticleRevive vX.Y.Z
 boot=SNESticle.elf
 ```
 
-O gerador usará o mesmo catálogo para criar tanto o `title.cfg` quanto a entrada correspondente do OSDMenu, evitando cadastro manual duplicado.
+E a versão correspondente será usada no nome da entrada do OSDMenu. Dessa forma, o usuário poderá enxergar a versão instalada diretamente no menu.
 
-Documentação do OPL: https://github.com/ps2homebrew/Open-PS2-Loader
+O PS2BBL será configurado para usar **R1 como atalho para o OSDMenu**, mantendo o PS2BBL no Memory Card e o OSDMenu no armazenamento maior.
 
-## Saída final planejada
+## Projetos relacionados
 
-O objetivo é gerar pastas com nomes difíceis de confundir, por exemplo:
-
-```text
-output/
-├── 1_MEMORY_CARD/
-│   ├── ... PS2BBL/configuração ...
-│   └── README-COPY-TO-MEMORY-CARD.txt
-│
-└── 2_MX4SIO/
-    ├── APPS/
-    └── README-COPY-TO-MX4SIO.txt
-```
-
-Se o usuário escolher outro dispositivo, a segunda pasta será adaptada para ele. O README gerado também deverá explicar exatamente **o conteúdo que deve ser copiado para a raiz de cada dispositivo**, para evitar caminhos incorretos como `mc0:/1_MEMORY_CARD/...`.
-
-## PS2BBL e R1
-
-O fluxo planejado configura o PS2BBL para chamar o OSDMenu ao **segurar R1 durante a inicialização**. A geração real do arquivo de configuração ainda será implementada e será adaptada ao tipo de Memory Card e armazenamento escolhidos.
-
-Documentação do PS2BBL: https://israpps.github.io/PlayStation2-Basic-BootLoader/
-
-## OSDMenu
-
-O OSDMenu será mantido no armazenamento maior, não no Memory Card, e seu catálogo será gerado a partir dos mesmos homebrews selecionados pelo usuário.
-
-Projeto oficial: https://github.com/pcm720/OSDMenu
+- PS2BBL: https://israpps.github.io/PlayStation2-Basic-BootLoader/
+- OSDMenu: https://github.com/pcm720/OSDMenu
+- Open PS2 Loader: https://github.com/ps2homebrew/Open-PS2-Loader
+- wLaunchELF: https://github.com/ps2homebrew/wLaunchELF
 
 ## Segurança
 
-Antes de testar pacotes que alterem arquivos de boot ou configuração do Memory Card, mantenha backup do conteúdo importante. Durante o desenvolvimento, revise a árvore gerada antes de copiá-la para um console real.
-
-## Próximas etapas
-
-1. Detectar releases/tags/builds sem misturar stable e prerelease.
-2. Baixar e extrair assets de releases.
-3. Implementar geradores específicos para PS2BBL, OSDMenu e OPL.
-4. Criar a árvore final de saída por dispositivo.
-5. Gerar READMEs personalizados para a instalação no PS2.
-6. Expandir o catálogo de homebrews.
+Enquanto o gerador final de Memory Card ainda estiver em desenvolvimento, não copie arquivos de boot experimentalmente sobre um cartão importante sem backup. Revise a árvore gerada antes de testar no hardware real.
