@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 
 class PackageError(RuntimeError):
-    """Raised when a PS2 installation package cannot be generated."""
+    """Raised when the ready-to-copy package cannot be generated."""
+
+
+MEMORY_CARD_FOLDERS = {
+    "standard": "1_MEMORY_CARD",
+    "sd2psx": "1_SD2PSX_VMC",
+    "memcard-pro2": "1_MEMCARD_PRO2_VMC",
+    "psxmemcard-gen2": "1_PSXMEMCARD_GEN2_VMC",
+    "other-mmce": "1_MMCE_VMC",
+}
 
 
 STORAGE_LAYOUTS: dict[str, dict[str, Any]] = {
@@ -21,7 +31,6 @@ STORAGE_LAYOUTS: dict[str, dict[str, Any]] = {
     "mx4sio": {
         "folder": "2_MX4SIO",
         "osd_prefix": "mx4sio:",
-        # Official PS2BBL uses massX: for MX4SIO application paths.
         "ps2bbl_prefix": "massX:",
         "ps2bbl_variant": "PS2_MX4SIO",
         "target": "MX4SIO SD root",
@@ -36,246 +45,122 @@ STORAGE_LAYOUTS: dict[str, dict[str, Any]] = {
     "hdd-exfat": {
         "folder": "2_HDD_EXFAT",
         "osd_prefix": "ata:",
-        # OSDMenu supports ata:, but upstream PS2BBL does not expose ata: as an
-        # application path in the common official build. Keep this explicit.
         "ps2bbl_prefix": None,
-        "ps2bbl_variant": None,
+        # PS2BBL itself still belongs on the MC. Use the normal PS2 build,
+        # but do not invent an unverified ata:/ R1 binding.
+        "ps2bbl_variant": "PS2",
         "target": "internal exFAT HDD root",
-    },
-    "hdd-apa": {
-        "folder": "2_HDD_APA",
-        "osd_prefix": "hdd0:__common:pfs:",
-        "ps2bbl_prefix": "hdd0:__common:pfs:",
-        "ps2bbl_variant": "PS2_HDD",
-        "target": "hdd0:__common:pfs:/",
+        "warning": (
+            "Internal exFAT HDD: OSDMenu/OPL paths use ata:/, but R1 in PS2BBL is left "
+            "unbound because ata:/ launch support has not been verified for the packaged official build."
+        ),
     },
 }
 
-MEMORY_CARD_FOLDERS = {
-    "standard": "1_MEMORY_CARD",
-    "sd2psx": "1_SD2PSX_VMC",
-    "memcard-pro2": "1_MEMCARD_PRO2_VMC",
-    "psxmemcard-gen2": "1_PSXMEMCARD_GEN2_VMC",
-    "other-mmce": "1_MMCE_VMC",
-}
+
+def _safe_partition_folder(partition: str) -> str:
+    if partition == "+OPL":
+        return "PLUS_OPL"
+    cleaned = re.sub(r"[^A-Za-z0-9._+-]+", "_", partition).strip("_")
+    return cleaned or "PFS"
 
 
-def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
-    storage_id = str(plan.get("storage", {}).get("id") or "")
-    storage_cfg = STORAGE_LAYOUTS.get(storage_id)
-    if storage_cfg is None:
-        raise PackageError(f"Unsupported storage type: {storage_id or 'unknown'}")
+def _storage_layout(storage: dict[str, Any]) -> dict[str, Any]:
+    storage_id = str(storage.get("id") or "")
+    if storage_id != "hdd-apa":
+        if storage_id not in STORAGE_LAYOUTS:
+            raise PackageError(f"Unsupported storage: {storage_id}")
+        return dict(STORAGE_LAYOUTS[storage_id])
 
-    card_id = str(plan.get("memory_card", {}).get("id") or "standard")
-    mc_folder = MEMORY_CARD_FOLDERS.get(card_id, "1_MEMORY_CARD")
-
-    package_root = output_root / "Ps2Installer_Package"
-    if package_root.exists():
-        shutil.rmtree(package_root)
-
-    mc_root = package_root / mc_folder
-    storage_root = package_root / str(storage_cfg["folder"])
-    (mc_root / "BOOT").mkdir(parents=True, exist_ok=True)
-    (mc_root / "SYS-CONF").mkdir(parents=True, exist_ok=True)
-    (storage_root / "APPS").mkdir(parents=True, exist_ok=True)
-
-    warnings: list[str] = []
-    installed: dict[str, dict[str, Any]] = {}
-
-    for app in plan.get("homebrews", []):
-        app_id = str(app.get("id") or "")
-        if app_id == "ps2bbl":
-            continue
-
-        source = _select_app_elf(app, plan.get("downloads", {}).get(app_id))
-        if source is None:
-            warnings.append(f"{app.get('name', app_id)}: no downloaded ELF was found; skipped.")
-            continue
-
-        folder = str(app.get("folder") or app_id or "APP")
-        app_dir = storage_root / "APPS" / folder
-        app_dir.mkdir(parents=True, exist_ok=True)
-        destination = app_dir / source.name
-        shutil.copy2(source, destination)
-
-        display_name = _display_name(app)
-        if app.get("menu_targets", {}).get("opl", False):
-            (app_dir / "title.cfg").write_text(
-                f"title={display_name}\nboot={destination.name}\n",
-                encoding="utf-8",
-            )
-
-        installed[app_id] = {
-            "name": app.get("name", app_id),
-            "display_name": display_name,
-            "folder": folder,
-            "elf": destination.name,
-            "relative_path": str(PurePosixPath("APPS") / folder / destination.name),
-            "menu_targets": app.get("menu_targets", {}),
-        }
-
-    bootloader = _install_ps2bbl(plan, mc_root, storage_cfg, warnings)
-
-    osdmenu_ini = _build_osdmenu_cnf(installed, storage_cfg)
-    (mc_root / "SYS-CONF" / "OSDMENU.CNF").write_text(osdmenu_ini, encoding="utf-8")
-
-    ps2bbl_ini = _build_ps2bbl_ini(storage_cfg, installed, warnings)
-    (mc_root / "SYS-CONF" / "PS2BBL.INI").write_text(ps2bbl_ini, encoding="utf-8")
-
-    _write_destination_readmes(plan, package_root, mc_root, storage_root, storage_cfg, warnings)
-
-    manifest = {
-        "schema_version": 1,
-        "package_root": str(package_root),
-        "memory_card_folder": mc_root.name,
-        "storage_folder": storage_root.name,
-        "storage_id": storage_id,
-        "ps2bbl": bootloader,
-        "installed_apps": installed,
-        "warnings": warnings,
-    }
-    (package_root / "manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    return manifest
-
-
-def _install_ps2bbl(
-    plan: dict[str, Any],
-    mc_root: Path,
-    storage_cfg: dict[str, Any],
-    warnings: list[str],
-) -> dict[str, Any] | None:
-    variant = storage_cfg.get("ps2bbl_variant")
-    if not variant:
-        warnings.append(
-            "PS2BBL: upstream official builds do not provide the required ata: "
-            "launch path for this internal exFAT layout. OSDMenu files were packaged, "
-            "but R1 boot requires a compatible PS2BBL Extended build or another entry point."
-        )
-        return None
-
-    download = plan.get("downloads", {}).get("ps2bbl")
-    if not isinstance(download, dict):
-        warnings.append("PS2BBL: release was not downloaded, so BOOT/BOOT.ELF was not generated.")
-        return None
-
-    extracted = download.get("extracted_path")
-    if not extracted:
-        warnings.append("PS2BBL: archive was not extracted; install py7zr and run again.")
-        return None
-
-    root = Path(str(extracted))
-    if not root.exists():
-        warnings.append(f"PS2BBL: extracted directory no longer exists: {root}")
-        return None
-
-    candidates = [
-        path
-        for path in root.rglob("COMPRESSED_PS2BBL.ELF")
-        if path.is_file() and variant in path.parts
-    ]
-    if not candidates:
-        warnings.append(
-            f"PS2BBL: could not find {variant}/COMPRESSED_PS2BBL.ELF in the downloaded archive."
-        )
-        return None
-
-    source = sorted(candidates, key=lambda path: (len(path.parts), str(path)))[0]
-    destination = mc_root / "BOOT" / "BOOT.ELF"
-    shutil.copy2(source, destination)
+    partition = str(storage.get("apa_partition") or "+OPL").strip()
+    if not partition or len(partition) > 32 or any(ch in partition for ch in ":/\\\r\n"):
+        raise PackageError(f"Invalid APA/PFS partition name: {partition!r}")
+    prefix = f"hdd0:{partition}:pfs:"
     return {
-        "variant": variant,
-        "source": str(source),
-        "destination": str(destination),
+        "folder": f"2_HDD_APA_{_safe_partition_folder(partition)}",
+        "osd_prefix": prefix,
+        "ps2bbl_prefix": prefix,
+        "ps2bbl_variant": "PS2_HDD",
+        "target": f"{prefix}/ (PFS partition root)",
+        "apa_partition": partition,
+        "warning": (
+            f"APA/PFS: partition {partition} must already exist before copying files. "
+            "Ps2Installer does not create or resize APA partitions."
+        ),
     }
 
 
-def _select_app_elf(app: dict[str, Any], download: Any) -> Path | None:
-    if not isinstance(download, dict) or download.get("error"):
-        return None
+def _device_path(prefix: str, relative_path: str) -> str:
+    return f"{prefix}/{relative_path.lstrip('/')}"
 
-    raw_candidates = download.get("elf_candidates") or []
-    candidates = [Path(str(path)) for path in raw_candidates]
-    candidates = [path for path in candidates if path.is_file()]
+
+def _literal_elf_names(app: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    for value in app.get("elf_names", []) or []:
+        value = str(value)
+        if "*" not in value and "?" not in value and value.lower().endswith(".elf"):
+            result.append(value)
+    return result
+
+
+def _pick_elf(app: dict[str, Any], download: dict[str, Any]) -> Path | None:
+    candidates = [Path(str(p)) for p in (download.get("elf_candidates") or [])]
+    candidates = [p for p in candidates if p.is_file()]
     if not candidates:
         return None
 
-    preferred = [str(name).lower() for name in app.get("elf_names", [])]
-    for preferred_name in preferred:
-        for path in candidates:
-            if path.name.lower() == preferred_name:
-                return path
+    preferred = {name.lower() for name in _literal_elf_names(app)}
+    for candidate in candidates:
+        if candidate.name.lower() in preferred:
+            return candidate
     return candidates[0]
 
 
+def _destination_elf_name(app: dict[str, Any], source: Path) -> str:
+    literal = _literal_elf_names(app)
+    if literal:
+        return literal[0]
+    return source.name
+
+
 def _display_name(app: dict[str, Any]) -> str:
-    name = str(app.get("name") or app.get("id") or "Application")
+    name = str(app.get("name") or app.get("id") or "App")
     resolved = app.get("resolved") or {}
     version = str(resolved.get("version") or "").strip()
+    base = f"{name} {version}".strip()
+
     channel = str(resolved.get("channel") or "").lower()
-    prerelease = bool(resolved.get("prerelease", False))
+    if channel == "development":
+        return f"{base} [Development]"
 
-    label = f"{name} {version}".strip()
-    lowered = version.lower()
-    if channel == "development" and not any(token in lowered for token in ("dev", "nightly")):
-        label += " [Dev]"
-    elif prerelease and not any(token in lowered for token in ("beta", "alpha", "rc", "pre")):
-        label += " [Prerelease]"
-    return label
+    if bool(resolved.get("prerelease")):
+        low = version.lower()
+        if not any(token in low for token in ("beta", "alpha", "rc", "pre")):
+            return f"{base} [Prerelease]"
+    return base
 
 
-def _build_osdmenu_cnf(
-    installed: dict[str, dict[str, Any]], storage_cfg: dict[str, Any]
-) -> str:
-    lines = [
-        "# Generated by Ps2Installer",
-        "OSDSYS_video_mode = AUTO",
-        "OSDSYS_Skip_Disc = 1",
-        "OSDSYS_boot = clock",
-        "OSDSYS_custom_menu = 1",
-        "OSDSYS_scroll_menu = 1",
-        "OSDSYS_num_displayed_items = 7",
-        "",
-        "name_OSDSYS_ITEM_1 = Launch Disc",
-        "path1_OSDSYS_ITEM_1 = cdrom",
-        "arg_OSDSYS_ITEM_1 = -nologo",
-        "",
-    ]
-
-    index = 10
-    prefix = str(storage_cfg["osd_prefix"])
-    for app in installed.values():
-        if not app.get("menu_targets", {}).get("osdmenu", False):
-            continue
-        if index >= 200:
-            break
-        path = _device_path(prefix, str(app["relative_path"]))
-        lines.extend(
-            [
-                f"name_OSDSYS_ITEM_{index} = {app['display_name']}",
-                f"path1_OSDSYS_ITEM_{index} = {path}",
-                "",
+def _find_ps2bbl_elf(download: dict[str, Any], variant: str) -> Path | None:
+    extracted = download.get("extracted_path")
+    if extracted:
+        root = Path(str(extracted))
+        if root.exists():
+            exact = [
+                p
+                for p in root.rglob("COMPRESSED_PS2BBL.ELF")
+                if p.is_file() and p.parent.name == variant
             ]
-        )
-        index += 1
+            if exact:
+                return sorted(exact)[0]
 
-    lines.extend(
-        [
-            "name_OSDSYS_ITEM_200 = Shutdown",
-            "path1_OSDSYS_ITEM_200 = POWEROFF",
-            "",
-        ]
-    )
-    return "\n".join(lines)
+    for value in download.get("elf_candidates") or []:
+        path = Path(str(value))
+        if path.is_file() and path.name == "COMPRESSED_PS2BBL.ELF" and path.parent.name == variant:
+            return path
+    return None
 
 
-def _build_ps2bbl_ini(
-    storage_cfg: dict[str, Any],
-    installed: dict[str, dict[str, Any]],
-    warnings: list[str],
-) -> str:
+def _build_ps2bbl_ini(layout: dict[str, Any], installed_apps: dict[str, Any]) -> str:
     lines = [
         "# Generated by Ps2Installer",
         "SKIP_PS2LOGO = 0",
@@ -288,142 +173,247 @@ def _build_ps2bbl_ini(
         "LK_AUTO_E1 = $OSDSYS",
     ]
 
-    osdmenu = installed.get("osdmenu")
-    prefix = storage_cfg.get("ps2bbl_prefix")
+    osdmenu = installed_apps.get("osdmenu")
+    prefix = layout.get("ps2bbl_prefix")
     if osdmenu and prefix:
         lines.extend(
             [
                 "",
                 "# Hold R1 while PS2BBL is starting to launch OSDMenu.",
-                f"LK_R1_E1 = {_device_path(str(prefix), str(osdmenu['relative_path']))}",
+                f"LK_R1_E1 = {_device_path(str(prefix), osdmenu['relative_path'])}",
             ]
         )
-    elif not osdmenu:
-        warnings.append("OSDMenu: no ELF was packaged, therefore R1 has no OSDMenu target.")
-        lines.extend(["", "# R1 target omitted: OSDMenu ELF was not available."])
     else:
         lines.extend(
             [
                 "",
-                "# R1 target omitted: selected storage needs a PS2BBL build with ata: support.",
+                "# R1 is intentionally not generated for this storage mode.",
+                "# See the package README/warnings before copying the package.",
             ]
         )
-
-    lines.append("")
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
-def _device_path(prefix: str, relative: str) -> str:
-    return f"{prefix}/{relative.lstrip('/')}"
+def _build_osdmenu_cnf(layout: dict[str, Any], installed_apps: dict[str, Any]) -> str:
+    lines = [
+        "# Generated by Ps2Installer",
+        "OSDSYS_video_mode = AUTO",
+        "OSDSYS_Skip_Disc = 1",
+        "OSDSYS_boot = clock",
+        "OSDSYS_custom_menu = 1",
+        "OSDSYS_scroll_menu = 1",
+        "OSDSYS_num_displayed_items = 7",
+        "",
+        "name_OSDSYS_ITEM_1 = Launch Disc",
+        "path1_OSDSYS_ITEM_1 = cdrom",
+        "arg_OSDSYS_ITEM_1 = -nologo",
+    ]
+
+    index = 10
+    for app_id, item in installed_apps.items():
+        if app_id == "osdmenu" or not (item.get("menu_targets") or {}).get("osdmenu"):
+            continue
+        lines.extend(
+            [
+                "",
+                f"name_OSDSYS_ITEM_{index} = {item['display_name']}",
+                f"path1_OSDSYS_ITEM_{index} = {_device_path(str(layout['osd_prefix']), item['relative_path'])}",
+            ]
+        )
+        index += 1
+
+    lines.extend(
+        [
+            "",
+            "name_OSDSYS_ITEM_200 = Shutdown",
+            "path1_OSDSYS_ITEM_200 = POWEROFF",
+        ]
+    )
+    return "\n".join(lines) + "\n"
 
 
-def _write_destination_readmes(
-    plan: dict[str, Any],
+def _localized(language: str, pt: str, en: str, es: str) -> str:
+    if language.lower().startswith("pt"):
+        return pt
+    if language.lower().startswith("es"):
+        return es
+    return en
+
+
+def _write_readmes(
     package_root: Path,
     mc_root: Path,
     storage_root: Path,
-    storage_cfg: dict[str, Any],
+    plan: dict[str, Any],
+    layout: dict[str, Any],
     warnings: list[str],
 ) -> None:
     language = str(plan.get("language") or "en")
-    card_name = str(plan.get("memory_card", {}).get("name") or "Memory Card")
-    storage_name = str(plan.get("storage", {}).get("name") or storage_cfg["target"])
+    storage = plan.get("storage") or {}
+    card = plan.get("memory_card") or {}
+    apa_partition = layout.get("apa_partition")
 
-    text = _readme_text(language, card_name, storage_name, storage_cfg, warnings)
-    (package_root / "README.txt").write_text(text, encoding="utf-8")
-
-    if language == "pt-BR":
-        mc_text = (
-            "COPIE O CONTEUDO DESTA PASTA PARA A RAIZ DO MEMORY CARD/VMC.\n\n"
-            "Exemplo: BOOT/BOOT.ELF deve terminar como mc0:/BOOT/BOOT.ELF ou mc1:/BOOT/BOOT.ELF.\n"
-            "Nao copie a pasta externa inteira para dentro do Memory Card.\n"
+    extra = ""
+    if apa_partition:
+        extra = _localized(
+            language,
+            f"\nHDD APA/PFS: monte/crie primeiro a partição {apa_partition} e copie APPS para a raiz PFS dela.\n",
+            f"\nAPA/PFS HDD: create/mount partition {apa_partition} first and copy APPS to that PFS root.\n",
+            f"\nHDD APA/PFS: crea/monta primero la partición {apa_partition} y copia APPS a su raíz PFS.\n",
         )
-        storage_text = (
-            f"COPIE O CONTEUDO DESTA PASTA PARA {storage_cfg['target']}.\n\n"
-            "A pasta APPS deve ficar diretamente no destino indicado.\n"
-        )
-    elif language == "es":
-        mc_text = (
-            "COPIA EL CONTENIDO DE ESTA CARPETA A LA RAIZ DE LA MEMORY CARD/VMC.\n\n"
-            "Ejemplo: BOOT/BOOT.ELF debe terminar como mc0:/BOOT/BOOT.ELF o mc1:/BOOT/BOOT.ELF.\n"
-            "No copies la carpeta externa completa dentro de la Memory Card.\n"
-        )
-        storage_text = (
-            f"COPIA EL CONTENIDO DE ESTA CARPETA A {storage_cfg['target']}.\n\n"
-            "La carpeta APPS debe quedar directamente en el destino indicado.\n"
-        )
-    else:
-        mc_text = (
-            "COPY THE CONTENTS OF THIS FOLDER TO THE ROOT OF THE MEMORY CARD/VMC.\n\n"
-            "Example: BOOT/BOOT.ELF must end up as mc0:/BOOT/BOOT.ELF or mc1:/BOOT/BOOT.ELF.\n"
-            "Do not copy the outer destination folder itself into the Memory Card.\n"
-        )
-        storage_text = (
-            f"COPY THE CONTENTS OF THIS FOLDER TO {storage_cfg['target']}.\n\n"
-            "The APPS folder must live directly at the indicated destination.\n"
+    elif storage.get("id") == "hdd-exfat":
+        extra = _localized(
+            language,
+            "\nHDD exFAT: copie APPS para a raiz exFAT. O R1 do PS2BBL não é configurado neste modo.\n",
+            "\nexFAT HDD: copy APPS to the exFAT root. PS2BBL R1 is not configured in this mode.\n",
+            "\nHDD exFAT: copia APPS a la raíz exFAT. R1 de PS2BBL no se configura en este modo.\n",
         )
 
-    (mc_root / "README-COPY-HERE.txt").write_text(mc_text, encoding="utf-8")
-    (storage_root / "README-COPY-HERE.txt").write_text(storage_text, encoding="utf-8")
-
-
-def _readme_text(
-    language: str,
-    card_name: str,
-    storage_name: str,
-    storage_cfg: dict[str, Any],
-    warnings: list[str],
-) -> str:
-    if warnings:
-        warning_lines = "\n".join(f"- {warning}" for warning in warnings) + "\n"
-    elif language == "pt-BR":
-        warning_lines = "nenhum\n"
-    elif language == "es":
-        warning_lines = "ninguno\n"
-    else:
-        warning_lines = "none\n"
-
-    if language == "pt-BR":
-        return (
-            "Ps2Installer - Pacote gerado\n\n"
-            f"Memory Card: {card_name}\n"
-            f"Armazenamento de apps: {storage_name}\n\n"
-            "1. Copie o CONTEUDO da pasta do Memory Card/VMC para a raiz do seu MC/VMC.\n"
-            f"2. Copie o CONTEUDO da pasta de armazenamento para {storage_cfg['target']}.\n"
-            "3. Ao iniciar o PS2BBL, segure R1 para abrir o OSDMenu.\n"
-            "4. Os mesmos ELFs em APPS tambem recebem title.cfg quando devem aparecer no OPL.\n\n"
-            "IMPORTANTE: BOOT/BOOT.ELF e um ELF do PS2BBL. Ele nao cria sozinho um "
-            "exploit/autoboot em um Memory Card comum. O console ainda precisa de um ponto "
-            "de entrada compativel (por exemplo, System Update/OpenTuna/modchip conforme seu setup).\n\n"
-            "Avisos:\n"
-            f"{warning_lines}"
-        )
-    if language == "es":
-        return (
-            "Ps2Installer - Paquete generado\n\n"
-            f"Memory Card: {card_name}\n"
-            f"Almacenamiento de apps: {storage_name}\n\n"
-            "1. Copia el CONTENIDO de la carpeta de Memory Card/VMC a la raiz de tu MC/VMC.\n"
-            f"2. Copia el CONTENIDO de la carpeta de almacenamiento a {storage_cfg['target']}.\n"
-            "3. Al iniciar PS2BBL, manten R1 para abrir OSDMenu.\n"
-            "4. Los mismos ELFs en APPS reciben title.cfg cuando deben aparecer en OPL.\n\n"
-            "IMPORTANTE: BOOT/BOOT.ELF es un ELF de PS2BBL. Por si solo no instala un "
-            "exploit/autoboot en una Memory Card normal; aun necesitas un punto de entrada "
-            "compatible con tu setup.\n\n"
-            "Avisos:\n"
-            f"{warning_lines}"
-        )
-    return (
-        "Ps2Installer - Generated package\n\n"
-        f"Memory Card: {card_name}\n"
-        f"App storage: {storage_name}\n\n"
-        "1. Copy the CONTENTS of the Memory Card/VMC folder to the root of your MC/VMC.\n"
-        f"2. Copy the CONTENTS of the storage folder to {storage_cfg['target']}.\n"
-        "3. Hold R1 while PS2BBL starts to open OSDMenu.\n"
-        "4. The same ELFs under APPS receive title.cfg when they should also appear in OPL.\n\n"
-        "IMPORTANT: BOOT/BOOT.ELF is a PS2BBL ELF. It does not by itself install an "
-        "exploit/autoboot on a normal Memory Card; your console still needs a compatible "
-        "entry point for your setup.\n\n"
-        "Warnings:\n"
-        f"{warning_lines}"
+    warning_text = "\n".join(f"- {w}" for w in warnings) if warnings else _localized(language, "nenhum", "none", "ninguno")
+    main = _localized(
+        language,
+        f"""Ps2Installer - Pacote gerado\n\nMemory Card: {card.get('name', '?')}\nArmazenamento de apps: {storage.get('name', '?')}\n\n1. Copie o CONTEUDO da pasta do Memory Card/VMC para a raiz do seu MC/VMC.\n2. Copie o CONTEUDO da pasta de armazenamento para {layout['target']}.\n3. Quando R1 estiver configurado no PS2BBL.INI, segure R1 no boot para abrir o OSDMenu.\n4. Os ELFs em APPS recebem title.cfg quando devem aparecer no OPL.\n{extra}\nIMPORTANTE: BOOT/BOOT.ELF e um ELF do PS2BBL; ele nao instala sozinho um exploit/autoboot.\n\nAvisos:\n{warning_text}\n""",
+        f"""Ps2Installer - Generated package\n\nMemory Card: {card.get('name', '?')}\nApps storage: {storage.get('name', '?')}\n\n1. Copy the CONTENTS of the Memory Card/VMC folder to the MC/VMC root.\n2. Copy the CONTENTS of the storage folder to {layout['target']}.\n3. When R1 is configured in PS2BBL.INI, hold R1 during boot to open OSDMenu.\n4. ELFs under APPS get title.cfg when they should appear in OPL.\n{extra}\nIMPORTANT: BOOT/BOOT.ELF is a PS2BBL ELF; it does not install an exploit/autoboot by itself.\n\nWarnings:\n{warning_text}\n""",
+        f"""Ps2Installer - Paquete generado\n\nMemory Card: {card.get('name', '?')}\nAlmacenamiento de apps: {storage.get('name', '?')}\n\n1. Copia el CONTENIDO de la carpeta Memory Card/VMC a la raíz del MC/VMC.\n2. Copia el CONTENIDO de la carpeta de almacenamiento a {layout['target']}.\n3. Cuando R1 esté configurado en PS2BBL.INI, mantén R1 durante el arranque para abrir OSDMenu.\n4. Los ELF dentro de APPS reciben title.cfg cuando deben aparecer en OPL.\n{extra}\nIMPORTANTE: BOOT/BOOT.ELF es un ELF de PS2BBL; no instala por sí solo un exploit/autoboot.\n\nAdvertencias:\n{warning_text}\n""",
     )
+    (package_root / "README.txt").write_text(main, encoding="utf-8")
+
+    mc_copy = _localized(
+        language,
+        "COPIE O CONTEUDO DESTA PASTA PARA A RAIZ DO MEMORY CARD/VMC.\n",
+        "COPY THE CONTENTS OF THIS FOLDER TO THE MEMORY CARD/VMC ROOT.\n",
+        "COPIA EL CONTENIDO DE ESTA CARPETA A LA RAÍZ DE LA MEMORY CARD/VMC.\n",
+    )
+    (mc_root / "README-COPY-HERE.txt").write_text(mc_copy, encoding="utf-8")
+
+    storage_copy = _localized(
+        language,
+        f"COPIE APPS PARA {layout['target']}.\n",
+        f"COPY APPS TO {layout['target']}.\n",
+        f"COPIA APPS A {layout['target']}.\n",
+    )
+    (storage_root / "README-COPY-HERE.txt").write_text(storage_copy, encoding="utf-8")
+
+
+def _write_apa_opl_helper(package_root: Path, partition: str, language: str) -> str | None:
+    if partition == "+OPL":
+        return None
+
+    helper = package_root / "3_HDD_APA_OPL_CONFIG" / "__common" / "OPL"
+    helper.mkdir(parents=True, exist_ok=True)
+    (helper / "conf_hdd.cfg").write_text(f"hdd_partition={partition}\n", encoding="utf-8")
+    readme = package_root / "3_HDD_APA_OPL_CONFIG" / "README-COPY-HERE.txt"
+    readme.write_text(
+        _localized(
+            language,
+            "Copie OPL/conf_hdd.cfg para a raiz da particao __common. Isso faz o OPL usar a mesma particao PFS escolhida pelo Ps2Installer para APPS.\n",
+            "Copy OPL/conf_hdd.cfg to the __common partition root. This makes OPL use the same PFS partition selected by Ps2Installer for APPS.\n",
+            "Copia OPL/conf_hdd.cfg a la raíz de la partición __common. Esto hace que OPL use la misma partición PFS elegida por Ps2Installer para APPS.\n",
+        ),
+        encoding="utf-8",
+    )
+    return str(helper.parent.parent)
+
+
+def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
+    package_root = output_root / "Ps2Installer_Package"
+    if package_root.exists():
+        shutil.rmtree(package_root)
+    package_root.mkdir(parents=True, exist_ok=True)
+
+    memory = plan.get("memory_card") or {}
+    storage = plan.get("storage") or {}
+    mc_folder = MEMORY_CARD_FOLDERS.get(str(memory.get("id")), "1_MEMORY_CARD")
+    layout = _storage_layout(storage)
+    mc_root = package_root / mc_folder
+    storage_root = package_root / str(layout["folder"])
+    (mc_root / "BOOT").mkdir(parents=True, exist_ok=True)
+    (mc_root / "SYS-CONF").mkdir(parents=True, exist_ok=True)
+    (storage_root / "APPS").mkdir(parents=True, exist_ok=True)
+
+    warnings: list[str] = []
+    if layout.get("warning"):
+        warnings.append(str(layout["warning"]))
+
+    installed_apps: dict[str, Any] = {}
+    downloads = plan.get("downloads") or {}
+    for app in plan.get("homebrews", []) or []:
+        app_id = str(app.get("id") or "")
+        if not app_id or app_id == "ps2bbl":
+            continue
+        download = downloads.get(app_id) or {}
+        source = _pick_elf(app, download)
+        if source is None:
+            warnings.append(f"{app.get('name', app_id)}: no downloaded ELF was found; skipped.")
+            continue
+
+        folder = str(app.get("folder") or app_id)
+        dest_dir = storage_root / "APPS" / folder
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        elf_name = _destination_elf_name(app, source)
+        shutil.copy2(source, dest_dir / elf_name)
+        display_name = _display_name(app)
+        menu_targets = dict(app.get("menu_targets") or {})
+        relative_path = f"APPS/{folder}/{elf_name}"
+        installed_apps[app_id] = {
+            "name": app.get("name") or app_id,
+            "display_name": display_name,
+            "folder": folder,
+            "elf": elf_name,
+            "relative_path": relative_path,
+            "menu_targets": menu_targets,
+        }
+        if menu_targets.get("opl"):
+            (dest_dir / "title.cfg").write_text(
+                f"title={display_name}\nboot={elf_name}\n",
+                encoding="utf-8",
+            )
+
+    ps2bbl_manifest: dict[str, Any] | None = None
+    ps2bbl_download = downloads.get("ps2bbl") or {}
+    variant = str(layout.get("ps2bbl_variant") or "")
+    if variant:
+        source = _find_ps2bbl_elf(ps2bbl_download, variant)
+        if source:
+            destination = mc_root / "BOOT" / "BOOT.ELF"
+            shutil.copy2(source, destination)
+            ps2bbl_manifest = {
+                "variant": variant,
+                "source": str(source),
+                "destination": str(destination),
+            }
+        else:
+            warnings.append(f"PS2BBL: required variant {variant} was not found in the extracted archive.")
+
+    (mc_root / "SYS-CONF" / "PS2BBL.INI").write_text(
+        _build_ps2bbl_ini(layout, installed_apps), encoding="utf-8"
+    )
+    (mc_root / "SYS-CONF" / "OSDMENU.CNF").write_text(
+        _build_osdmenu_cnf(layout, installed_apps), encoding="utf-8"
+    )
+
+    apa_helper = None
+    if storage.get("id") == "hdd-apa":
+        partition = str(layout.get("apa_partition") or "+OPL")
+        apa_helper = _write_apa_opl_helper(package_root, partition, str(plan.get("language") or "en"))
+
+    _write_readmes(package_root, mc_root, storage_root, plan, layout, warnings)
+
+    manifest = {
+        "schema_version": 2,
+        "package_root": str(package_root),
+        "memory_card_folder": mc_folder,
+        "storage_folder": str(layout["folder"]),
+        "storage_id": storage.get("id"),
+        "apa_partition": layout.get("apa_partition"),
+        "osdmenu_prefix": layout.get("osd_prefix"),
+        "ps2bbl_prefix": layout.get("ps2bbl_prefix"),
+        "ps2bbl": ps2bbl_manifest,
+        "installed_apps": installed_apps,
+        "opl_hdd_config_helper": apa_helper,
+        "warnings": warnings,
+    }
+    (package_root / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return manifest

@@ -1,1 +1,4 @@
-py7zr>=0.22,<1.0
+# Ps2Installer has no mandatory pip dependencies.
+# 7-Zip extraction prefers a native 7z/7zz/7za/7zr executable.
+# If none is available on desktop, py7zr>=1.1,<2 is installed on demand.
+# Termux/Android: pkg install 7zip

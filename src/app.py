@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import LANGUAGES, MEMORY_CARDS, STORAGES, TEXT
-from .dependencies import (DependencyError, ensure_py7zr, find_native_7z, module_available, running_on_android)
+from .dependencies import DependencyError, ensure_py7zr, find_native_7z, module_available, running_on_android
 from .downloads import DownloadError, download_release
 from .package import PackageError, build_package
 from .releases import GitHubError, GitHubReleaseResolver, ResolvedRelease
@@ -18,16 +18,6 @@ CATALOG_PATH = ROOT / "catalog" / "homebrews.json"
 DEFAULT_OUTPUT_DIR = ROOT / "output"
 REQUIREMENTS_PATH = ROOT / "requirements.txt"
 TOTAL_STEPS = 6
-
-
-def localized(language: str, pt: str, en: str, es: str) -> str:
-    language = language.lower()
-    if language.startswith("pt"):
-        return pt
-    if language.startswith("es"):
-        return es
-    return en
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build a PS2 homebrew installation package.")
@@ -63,6 +53,31 @@ def yes_no(prompt: str, default: bool = False) -> bool:
             return True
         if raw in {"n", "no", "não", "nao"}:
             return False
+
+
+def _valid_apa_partition(name: str) -> bool:
+    return bool(name) and len(name) <= 32 and not any(ch in name for ch in ":/\\\r\n")
+
+
+def choose_hdd_apa_partition(text: dict[str, str]) -> str:
+    choice = numbered_choice(
+        text["hdd_apa_partition"],
+        [
+            ("+OPL", text["hdd_apa_opl"]),
+            ("__common", text["hdd_apa_common"]),
+            ("custom", text["hdd_apa_custom"]),
+        ],
+        text["invalid"],
+        default_id="+OPL",
+    )
+    if choice != "custom":
+        return choice
+
+    while True:
+        value = input(f"{text['hdd_apa_custom_prompt']}: ").strip()
+        if _valid_apa_partition(value):
+            return value
+        warn(text["hdd_apa_invalid"])
 
 
 def load_catalog() -> dict[str, Any]:
@@ -235,6 +250,13 @@ def main() -> None:
     info(t["hardware_help"])
     card_id = numbered_choice(t["memory_card"], [(i["id"], i["name"]) for i in MEMORY_CARDS], t["invalid"])
     storage_id = numbered_choice(t["storage"], [(i["id"], i["name"]) for i in STORAGES], t["invalid"])
+    card = dict(get_by_id(MEMORY_CARDS, card_id))
+    storage = dict(get_by_id(STORAGES, storage_id))
+    if storage_id == "hdd-apa":
+        storage["apa_partition"] = choose_hdd_apa_partition(t)
+        ok(t["hdd_apa_selected"].format(partition=storage["apa_partition"]))
+    elif storage_id == "hdd-exfat":
+        warn(t["hdd_exfat_notice"])
 
     section(3, TOTAL_STEPS, t["step_apps"])
     info(t["apps_help"])
@@ -275,10 +297,8 @@ def main() -> None:
             warn(t["unresolved"])
         selected.append((app, chosen))
 
-    card = get_by_id(MEMORY_CARDS, card_id)
-    storage = get_by_id(STORAGES, storage_id)
     plan: dict[str, Any] = {
-        "schema_version": 4,
+        "schema_version": 5,
         "language": language,
         "output_root": str(output_root),
         "memory_card": card,
@@ -292,6 +312,8 @@ def main() -> None:
     section(4, TOTAL_STEPS, t["step_summary"])
     info(f"{t['card']}: {card['name']}")
     info(f"{t['selected_storage']}: {storage['name']}")
+    if storage.get("apa_partition"):
+        info(t["hdd_apa_selected"].format(partition=storage["apa_partition"]))
     print(f"  {t['selected_apps']}:")
     optional_count = 0
     for app, resolved in selected:
@@ -314,26 +336,14 @@ def main() -> None:
         needs_7z = any(resolved and resolved.archive_type == "7z" for _, resolved in selected)
         if needs_7z:
             info(t["dependency_check"])
-
             native_7z = find_native_7z()
-
             if native_7z:
-                ok(localized(
-                    language,
-                    f"Backend 7z nativo encontrado: {native_7z}",
-                    f"Native 7z backend found: {native_7z}",
-                    f"Backend 7z nativo encontrado: {native_7z}",
-                ))
+                ok(t["native_7z"].format(path=native_7z))
             elif module_available("py7zr"):
                 ok(t["dependency_ok"])
             elif running_on_android():
                 dependency_ready = False
-                warn(localized(
-                    language,
-                    "7-Zip não encontrado. No Termux, instale com: pkg install 7zip",
-                    "7-Zip was not found. On Termux install it with: pkg install 7zip",
-                    "No se encontró 7-Zip. En Termux instálelo con: pkg install 7zip",
-                ))
+                warn(t["termux_7z_missing"])
             else:
                 info(t["dependency_install"])
                 try:
@@ -362,12 +372,7 @@ def main() -> None:
                 error(t["download_failed"].format(name=app["name"], error=exc))
             write_plan(plan, plan_path)
     else:
-        info(localized(
-            language,
-            "Etapa omitida.",
-            "Step skipped.",
-            "Etapa omitida.",
-        ))
+        info(t["skipped"])
 
     section(6, TOTAL_STEPS, t["step_package"])
     if should_download and not args.no_package and yes_no(t["generate_package"], default=True):
@@ -380,6 +385,8 @@ def main() -> None:
             package_path = display_path(Path(str(manifest["package_root"])))
             if ready:
                 success_box(t["package_ready"], [t["package_path"].format(path=package_path)])
+                for package_warning in manifest.get("warnings", []):
+                    warn(t["package_warning"].format(warning=package_warning))
             else:
                 error(t["package_incomplete"])
                 warn(t["missing"].format(items=", ".join(missing)))
@@ -393,12 +400,7 @@ def main() -> None:
             write_plan(plan, plan_path)
             error(t["package_failed"].format(error=exc))
     else:
-        info(localized(
-            language,
-            "Etapa omitida.",
-            "Step skipped.",
-            "Etapa omitida.",
-        ))
+        info(t["skipped"])
 
     print()
     ok(t["done"])

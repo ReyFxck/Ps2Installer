@@ -36,14 +36,16 @@ def download_release(
     warning: str | None = None
 
     if release.archive_type == "elf":
-        extracted_dir.mkdir(parents=True, exist_ok=True)
+        _reset_directory(extracted_dir)
         shutil.copy2(asset_path, extracted_dir / release.asset_name)
         extracted = True
     elif release.archive_type == "zip":
+        _reset_directory(extracted_dir)
         _safe_extract_zip(asset_path, extracted_dir)
         extracted = True
     elif release.archive_type == "7z":
         try:
+            _reset_directory(extracted_dir)
             _safe_extract_7z(asset_path, extracted_dir)
             extracted = True
         except DownloadError as exc:
@@ -59,9 +61,15 @@ def download_release(
     }
 
 
+def _reset_directory(path: Path) -> None:
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True, exist_ok=True)
+
+
 def _download_file(url: str, destination: Path, timeout: int) -> None:
     temp = destination.with_name(destination.name + ".part")
-    request = urllib.request.Request(url, headers={"User-Agent": "Ps2Installer/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "Ps2Installer/0.2"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response, temp.open("wb") as handle:
             shutil.copyfileobj(response, handle)
@@ -117,23 +125,18 @@ def _safe_extract_7z(archive: Path, destination: Path) -> None:
             capture_output=True,
             text=True,
         )
-
         if listing.returncode != 0:
-            detail = (listing.stderr or listing.stdout or "").strip()
+            detail = (getattr(listing, "stderr", "") or getattr(listing, "stdout", "") or "").strip()
             raise DownloadError(
-                f"7z could not read {archive.name}: "
-                f"{detail or f'exit status {listing.returncode}'}"
+                f"7z could not read {archive.name}: {detail or f'exit status {listing.returncode}'}"
             )
 
-        # Validate paths before extraction.
-        for line in listing.stdout.splitlines():
+        for line in (getattr(listing, "stdout", "") or "").splitlines():
             if not line.startswith("Path = "):
                 continue
-
             name = line[len("Path = "):].strip()
             if not name:
                 continue
-
             target = (destination / name).resolve()
             if target != root and root not in target.parents:
                 raise DownloadError(f"Unsafe 7z entry: {name}")
@@ -153,22 +156,19 @@ def _safe_extract_7z(archive: Path, destination: Path) -> None:
             capture_output=True,
             text=True,
         )
-
         if completed.returncode != 0:
-            detail = (completed.stderr or completed.stdout or "").strip()
+            detail = (getattr(completed, "stderr", "") or getattr(completed, "stdout", "") or "").strip()
             raise DownloadError(
                 f"7z extraction failed for {archive.name}: "
                 f"{detail or f'exit status {completed.returncode}'}"
             )
-
         return
 
     try:
         import py7zr  # type: ignore
     except ImportError as exc:
         raise DownloadError(
-            "No 7z extraction backend was found. "
-            "Install 7-Zip or py7zr. "
+            "No 7z extraction backend was found. Install 7-Zip or py7zr. "
             "Termux/Android: pkg install 7zip"
         ) from exc
 
@@ -179,6 +179,7 @@ def _safe_extract_7z(archive: Path, destination: Path) -> None:
                 raise DownloadError(f"Unsafe 7z entry: {name}")
         seven_zip.extractall(path=destination)
 
+
 def _find_elf_candidates(root: Path, preferred_names: list[str]) -> list[Path]:
     if not root.exists():
         return []
@@ -186,7 +187,7 @@ def _find_elf_candidates(root: Path, preferred_names: list[str]) -> list[Path]:
     all_elfs = sorted(
         path for path in root.rglob("*") if path.is_file() and path.suffix.lower() == ".elf"
     )
-    preferred = {name.lower() for name in preferred_names}
+    preferred = {name.lower() for name in preferred_names if "*" not in name and "?" not in name}
     if not preferred:
         return all_elfs
 
