@@ -24,7 +24,36 @@ Large storage
 
 ## Requirements
 
-Python 3.10 or newer is recommended. `.7z` extraction uses `py7zr`.
+Before cloning and running Ps2Installer, install:
+
+- **Python 3.10 or newer** — required to run the installer: https://www.python.org/downloads/
+- **Git** — required when following the `git clone` installation method: https://git-scm.com/downloads
+- an internet connection — used to resolve and download current homebrew releases.
+
+On Windows, enable **Add Python to PATH** in the Python installer. Verify the installation with:
+
+```bash
+python --version
+git --version
+```
+
+On systems where Python is exposed as `python3`, use:
+
+```bash
+python3 --version
+```
+
+Git is optional if you download the repository with GitHub's **Code > Download ZIP** option instead of cloning it.
+
+After cloning or extracting the ZIP, install the Python dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+`py7zr`, used for `.7z` release extraction, is installed through this requirements file.
+
+### Installation with Git
 
 ```bash
 git clone https://github.com/ReyFxck/Ps2Installer.git
