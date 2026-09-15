@@ -225,6 +225,7 @@ def collect_local_apps(text: dict[str, str], initial_paths: list[str] | None = N
 
 
 def choose_boot_method(text: dict[str, str]) -> dict[str, Any]:
+    info(text["boot_help"])
     method_id = numbered_choice(
         text["boot_method"],
         [
@@ -246,6 +247,13 @@ def choose_boot_method(text: dict[str, str]) -> dict[str, Any]:
         ("hdd-kelf", text["boot_hdd_kelf"]),
     ])[method_id]
     return meta
+
+
+def choose_r1_binding(storage_id: str, text: dict[str, str]) -> bool:
+    if storage_id == "hdd-exfat":
+        info(text["r1_exfat_unavailable"])
+        return False
+    return yes_no(text["r1_osdmenu"], default=True)
 
 
 def choose_existing_removals(existing_apps: list[dict[str, Any]], text: dict[str, str]) -> list[str]:
@@ -545,10 +553,10 @@ def main() -> None:
     elif storage_id == "hdd-exfat":
         warn(t["hdd_exfat_notice"])
 
-    boot = choose_boot_method(t)
     existing_apps: list[dict[str, Any]] = []
     workflow: dict[str, Any] = {"mode": workflow_mode, "rebuild_menus": True, "remove_folders": []}
     if workflow_mode == "update":
+        info(t["update_paths_help"])
         try:
             mc_target = _existing_directory(args.update_memory_card_root) if args.update_memory_card_root else _prompt_existing_directory(t["update_mc_path"])
             storage_target = _existing_directory(args.update_storage_root) if args.update_storage_root else _prompt_existing_directory(t["update_storage_path"])
@@ -558,15 +566,19 @@ def main() -> None:
         info(t["existing_apps_found"].format(count=len(existing_apps)))
         remove_folders = choose_existing_removals(existing_apps, t)
         rebuild_menus = True if remove_folders else yes_no(t["rebuild_menus"], default=True)
-        boot_default = str(boot.get("id") or "") in {"opentuna", "dev1"}
-        copy_boot_elf = yes_no(t["update_boot_elf"], default=boot_default)
         workflow.update({
             "memory_card_root": str(mc_target),
             "storage_root": str(storage_target),
             "remove_folders": remove_folders,
             "rebuild_menus": rebuild_menus,
-            "copy_boot_elf": copy_boot_elf,
         })
+
+    boot = choose_boot_method(t)
+    boot["r1_osdmenu"] = choose_r1_binding(storage_id, t)
+    if workflow_mode == "update":
+        boot_default = str(boot.get("id") or "") in {"opentuna", "dev1"}
+        copy_boot_elf = yes_no(t["update_boot_elf"], default=boot_default)
+        workflow["copy_boot_elf"] = copy_boot_elf
 
     section(3, TOTAL_STEPS, t["step_apps"])
     info(t["apps_help"])

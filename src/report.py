@@ -32,6 +32,7 @@ def write_installation_report(
         f"Memory Card: {memory.get('name', '?')}",
         f"Storage: {storage.get('name', '?')}",
         f"PS2BBL boot: {boot.get('id', 'existing')}",
+        f"PS2BBL R1 -> OSDMenu: {'enabled' if boot.get('r1_osdmenu', True) else 'disabled'}",
         f"Package status: {status_text}",
         "",
         _localized(language, "Aplicativos instalados:", "Installed apps:", "Aplicaciones instaladas:"),

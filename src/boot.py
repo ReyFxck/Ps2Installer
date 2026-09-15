@@ -89,12 +89,26 @@ def write_boot_guide(package_root: Path, plan: dict[str, Any], ps2bbl_manifest: 
             "ELF existente/manual: BOOT/BOOT.ELF es un ejecutable normal de PS2BBL. Inícialo con FMCB, wLaunchELF, OPL, FreeDVDBoot, otro launcher o una entrada ya existente. Este modo no promete autoboot.",
         )
 
+    r1_enabled = bool(selected.get("r1_osdmenu", True))
+    r1_note = _localized(
+        language,
+        "Atalho R1: configurado para abrir o OSDMenu quando o armazenamento selecionado oferecer um caminho PS2BBL validado.",
+        "R1 shortcut: configured to launch OSDMenu when the selected storage has a validated PS2BBL path.",
+        "Acceso R1: configurado para abrir OSDMenu cuando el almacenamiento seleccionado tenga una ruta PS2BBL validada.",
+    ) if r1_enabled else _localized(
+        language,
+        "Atalho R1: desativado neste pacote.",
+        "R1 shortcut: disabled in this package.",
+        "Acceso R1: desactivado en este paquete.",
+    )
+
     header = _localized(language, "Ps2Installer - Método de boot do PS2BBL", "Ps2Installer - PS2BBL boot method", "Ps2Installer - Método de arranque de PS2BBL")
-    text = f"{header}\n\n{body}\n"
+    text = f"{header}\n\n{body}\n\n{r1_note}\n"
     (package_root / "BOOT_METHOD.txt").write_text(text, encoding="utf-8")
 
     return {
         **meta,
         "payload_ready": payload_ready,
+        "r1_osdmenu": r1_enabled,
         "guide": "BOOT_METHOD.txt",
     }

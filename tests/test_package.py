@@ -94,6 +94,18 @@ class PackageBuilderTests(unittest.TestCase):
             helper = Path(manifest["package_root"]) / "3_HDD_APA_OPL_CONFIG" / "__common" / "OPL" / "conf_hdd.cfg"
             self.assertEqual(helper.read_text().strip(), "hdd_partition=__common")
 
+
+    def test_user_can_disable_r1_binding(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            plan["boot"] = {"id": "existing", "r1_osdmenu": False}
+            manifest = build_package(plan, root)
+            mc = Path(manifest["package_root"]) / manifest["memory_card_folder"]
+            ini = (mc / "SYS-CONF" / "PS2BBL.INI").read_text()
+            self.assertNotIn("LK_R1_E1", ini)
+            self.assertIn("disabled by the user", ini)
+
     def test_exfat_keeps_ps2bbl_but_does_not_invent_r1_ata_path(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

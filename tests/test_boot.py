@@ -18,6 +18,16 @@ class BootMethodTests(unittest.TestCase):
             self.assertIn("SYSTEM.XLF", text)
             self.assertIn("não cria um KELF válido", text)
 
+
+    def test_r1_setting_is_reported_separately_from_boot_method(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = {"language": "pt-BR", "boot": {"id": "existing", "r1_osdmenu": False}}
+            manifest = write_boot_guide(root, plan, {"variant": "PS2"})
+            text = (root / "BOOT_METHOD.txt").read_text(encoding="utf-8")
+            self.assertFalse(manifest["r1_osdmenu"])
+            self.assertIn("Atalho R1: desativado", text)
+
     def test_dev1_payload_does_not_require_an_extra_installer(self) -> None:
         meta = boot_method_meta("dev1")
         self.assertFalse(meta["external_required"])
