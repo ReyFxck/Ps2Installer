@@ -132,6 +132,8 @@ def _display_name(app: dict[str, Any]) -> str:
     channel = str(resolved.get("channel") or "").lower()
     if channel == "development":
         return f"{base} [Development]"
+    if channel == "nightly":
+        return f"{base} [Nightly]"
 
     if bool(resolved.get("prerelease")):
         low = version.lower()
@@ -139,6 +141,113 @@ def _display_name(app: dict[str, Any]) -> str:
             return f"{base} [Prerelease]"
     return base
 
+
+
+def _effective_tree_root(root: Path) -> Path:
+    """Strip harmless single wrapper directories from extracted archives."""
+    current = root
+    for _ in range(3):
+        if not current.is_dir():
+            break
+        children = [child for child in current.iterdir() if child.name != "__MACOSX"]
+        files = [child for child in children if child.is_file()]
+        dirs = [child for child in children if child.is_dir()]
+        if files or len(dirs) != 1:
+            break
+        current = dirs[0]
+    return current
+
+
+def _copy_tree_contents(source: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for child in source.iterdir():
+        target = destination / child.name
+        if child.is_dir():
+            shutil.copytree(child, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(child, target)
+
+
+def _find_installed_elf(app: dict[str, Any], destination: Path) -> Path | None:
+    candidates = sorted(
+        path for path in destination.rglob("*")
+        if path.is_file() and path.suffix.lower() == ".elf"
+    )
+    preferred = {name.lower() for name in _literal_elf_names(app)}
+    for candidate in candidates:
+        if candidate.name.lower() in preferred:
+            return candidate
+    return candidates[0] if candidates else None
+
+
+def _install_app_payload(
+    app: dict[str, Any],
+    download: dict[str, Any],
+    destination: Path,
+) -> tuple[Path | None, str]:
+    mode = str((app.get("install") or {}).get("mode") or "single-elf")
+    source = _pick_elf(app, download)
+
+    if mode == "single-elf":
+        if source is None:
+            return None, mode
+        destination.mkdir(parents=True, exist_ok=True)
+        elf_name = _destination_elf_name(app, source)
+        installed = destination / elf_name
+        shutil.copy2(source, installed)
+        return installed, mode
+
+    if mode == "elf-directory":
+        if source is None:
+            return None, mode
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.copytree(source.parent, destination)
+        installed = destination / source.name
+        return installed if installed.is_file() else _find_installed_elf(app, destination), mode
+
+    if mode in {"archive-tree", "collection"}:
+        extracted = download.get("extracted_path")
+        if not extracted:
+            return None, mode
+        root = Path(str(extracted))
+        if not root.is_dir():
+            return None, mode
+        if destination.exists():
+            shutil.rmtree(destination)
+        destination.mkdir(parents=True, exist_ok=True)
+        _copy_tree_contents(_effective_tree_root(root), destination)
+        return _find_installed_elf(app, destination), mode
+
+    raise PackageError(f"Unsupported install mode for {app.get('name', app.get('id'))}: {mode}")
+
+
+def _write_manual_sources(package_root: Path, plan: dict[str, Any]) -> list[dict[str, str]]:
+    manual: list[dict[str, str]] = []
+    for app in plan.get("homebrews", []) or []:
+        if str(app.get("source_type") or "github") != "manual":
+            continue
+        manual.append({
+            "name": str(app.get("name") or app.get("id") or "Homebrew"),
+            "url": str(app.get("source_url") or ""),
+            "note": str(app.get("manual_note") or "Manual download/setup required."),
+        })
+
+    if not manual:
+        return manual
+
+    language = str(plan.get("language") or "en")
+    intro = _localized(
+        language,
+        "Estas entradas foram selecionadas, mas não são baixadas automaticamente. Siga a fonte indicada e os requisitos de cada projeto.",
+        "These entries were selected but are not downloaded automatically. Follow the listed source and each project's setup requirements.",
+        "Estas entradas fueron seleccionadas, pero no se descargan automáticamente. Sigue la fuente indicada y los requisitos de cada proyecto.",
+    )
+    lines = ["Ps2Installer - Manual Sources", "", intro, ""]
+    for item in manual:
+        lines.extend([item["name"], f"Source: {item['url'] or '-'}", f"Note: {item['note']}", ""])
+    (package_root / "MANUAL_SOURCES.txt").write_text("\n".join(lines), encoding="utf-8")
+    return manual
 
 def _find_ps2bbl_elf(download: dict[str, Any], variant: str) -> Path | None:
     extracted = download.get("extracted_path")
@@ -211,7 +320,11 @@ def _build_osdmenu_cnf(layout: dict[str, Any], installed_apps: dict[str, Any]) -
 
     index = 10
     for app_id, item in installed_apps.items():
-        if app_id == "osdmenu" or not (item.get("menu_targets") or {}).get("osdmenu"):
+        if (
+            app_id == "osdmenu"
+            or not item.get("relative_path")
+            or not (item.get("menu_targets") or {}).get("osdmenu")
+        ):
             continue
         lines.extend(
             [
@@ -339,33 +452,40 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
     downloads = plan.get("downloads") or {}
     for app in plan.get("homebrews", []) or []:
         app_id = str(app.get("id") or "")
-        if not app_id or app_id == "ps2bbl":
+        if not app_id or app_id == "ps2bbl" or str(app.get("source_type") or "github") == "manual":
             continue
         download = downloads.get(app_id) or {}
-        source = _pick_elf(app, download)
-        if source is None:
-            warnings.append(f"{app.get('name', app_id)}: no downloaded ELF was found; skipped.")
-            continue
-
         folder = str(app.get("folder") or app_id)
         dest_dir = storage_root / "APPS" / folder
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        elf_name = _destination_elf_name(app, source)
-        shutil.copy2(source, dest_dir / elf_name)
+        installed_elf, install_mode = _install_app_payload(app, download, dest_dir)
+        if install_mode != "collection" and installed_elf is None:
+            warnings.append(f"{app.get('name', app_id)}: no installable downloaded payload was found; skipped.")
+            continue
+        if install_mode == "collection" and not dest_dir.exists():
+            warnings.append(f"{app.get('name', app_id)}: downloaded collection was not found; skipped.")
+            continue
+
         display_name = _display_name(app)
         menu_targets = dict(app.get("menu_targets") or {})
-        relative_path = f"APPS/{folder}/{elf_name}"
+        relative_path = None
+        elf_name = None
+        if installed_elf is not None:
+            elf_name = installed_elf.name
+            relative_path = installed_elf.relative_to(storage_root).as_posix()
+
         installed_apps[app_id] = {
             "name": app.get("name") or app_id,
             "display_name": display_name,
             "folder": folder,
             "elf": elf_name,
             "relative_path": relative_path,
+            "install_mode": install_mode,
             "menu_targets": menu_targets,
         }
-        if menu_targets.get("opl"):
+        if menu_targets.get("opl") and installed_elf is not None:
+            boot_path = installed_elf.relative_to(dest_dir).as_posix()
             (dest_dir / "title.cfg").write_text(
-                f"title={display_name}\nboot={elf_name}\n",
+                f"title={display_name}\nboot={boot_path}\n",
                 encoding="utf-8",
             )
 
@@ -379,7 +499,6 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
             shutil.copy2(source, destination)
             ps2bbl_manifest = {
                 "variant": variant,
-                "source": str(source),
                 "destination": str(destination),
             }
         else:
@@ -397,10 +516,11 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
         partition = str(layout.get("apa_partition") or "+OPL")
         apa_helper = _write_apa_opl_helper(package_root, partition, str(plan.get("language") or "en"))
 
+    manual_sources = _write_manual_sources(package_root, plan)
     _write_readmes(package_root, mc_root, storage_root, plan, layout, warnings)
 
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "package_root": str(package_root),
         "memory_card_folder": mc_folder,
         "storage_folder": str(layout["folder"]),
@@ -410,6 +530,7 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
         "ps2bbl_prefix": layout.get("ps2bbl_prefix"),
         "ps2bbl": ps2bbl_manifest,
         "installed_apps": installed_apps,
+        "manual_sources": manual_sources,
         "opl_hdd_config_helper": apa_helper,
         "warnings": warnings,
     }

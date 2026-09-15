@@ -212,3 +212,51 @@ TEXT: dict[str, dict[str, str]] = {
 }
 
 
+
+# Selection/download UX added in catalog schema v6.
+TEXT["pt-BR"].update({
+    "apps_help": "Componentes obrigatórios entram automaticamente. Escolha vários opcionais de uma vez usando vírgulas; P pula direto aos downloads.",
+    "resolving": "Consultando versões atuais no GitHub e fontes diretas...",
+    "multi_help": "Ex.: 1,2 ou 1, 2. Enter usa os padrões. A seleciona todos. P pula direto aos Downloads; também funciona como 1,5,P.",
+    "multi_prompt": "Selecione os homebrews/emuladores",
+    "default_marker": "padrão",
+    "manual_marker": "manual",
+    "manual_selected": "{name}: fonte/instalação manual; será documentado no pacote.",
+    "jumping_downloads": "Atalho P: indo direto para Downloads com os canais recomendados.",
+    "downloads_temporary": "Downloads e extrações são temporários e serão apagados automaticamente ao terminar.",
+    "downloads_kept": "Modo de depuração: downloads serão mantidos em {path}",
+    "downloads_cleaned": "Downloads temporários apagados.",
+})
+
+TEXT["en"].update({
+    "apps_help": "Required components are automatic. Select multiple optional apps at once with commas; P jumps straight to Downloads.",
+    "resolving": "Checking current GitHub releases and direct sources...",
+    "multi_help": "Example: 1,2 or 1, 2. Enter uses defaults. A selects all. P jumps straight to Downloads; 1,5,P also works.",
+    "multi_prompt": "Select homebrew/emulators",
+    "default_marker": "default",
+    "manual_marker": "manual",
+    "manual_selected": "{name}: manual source/setup; it will be documented in the package.",
+    "jumping_downloads": "P shortcut: jumping directly to Downloads using recommended channels.",
+    "downloads_temporary": "Downloads and extracted files are temporary and will be deleted automatically when finished.",
+    "downloads_kept": "Debug mode: downloads will be kept at {path}",
+    "downloads_cleaned": "Temporary downloads deleted.",
+})
+
+TEXT["es"].update({
+    "apps_help": "Los componentes obligatorios son automáticos. Selecciona varios opcionales con comas; P salta directamente a Descargas.",
+    "resolving": "Consultando versiones actuales en GitHub y fuentes directas...",
+    "multi_help": "Ej.: 1,2 o 1, 2. Enter usa los predeterminados. A selecciona todos. P salta a Descargas; 1,5,P también funciona.",
+    "multi_prompt": "Selecciona homebrews/emuladores",
+    "default_marker": "predeterminado",
+    "manual_marker": "manual",
+    "manual_selected": "{name}: fuente/instalación manual; se documentará en el paquete.",
+    "jumping_downloads": "Atajo P: saltando directamente a Descargas con los canales recomendados.",
+    "downloads_temporary": "Las descargas y extracciones son temporales y se borrarán automáticamente al terminar.",
+    "downloads_kept": "Modo de depuración: las descargas se conservarán en {path}",
+    "downloads_cleaned": "Descargas temporales eliminadas.",
+})
+
+# Clarify that only the final artifacts are persistent by default.
+TEXT["pt-BR"]["output_help"] = "Escolha onde selection.json e o pacote final serão criados. Downloads/extracões são temporários por padrão."
+TEXT["en"]["output_help"] = "Choose where selection.json and the final package will be created. Downloads/extractions are temporary by default."
+TEXT["es"]["output_help"] = "Elige dónde se crearán selection.json y el paquete final. Las descargas/extracciones son temporales por defecto."

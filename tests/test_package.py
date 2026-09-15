@@ -107,6 +107,50 @@ class PackageBuilderTests(unittest.TestCase):
             self.assertIn("ata:/APPS/wLaunchELF/BOOT.ELF", cnf)
             self.assertTrue(manifest["warnings"])
 
+    def test_manual_source_writes_manual_sources_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            plan["homebrews"].append({
+                "id": "popstarter",
+                "name": "POPStarter",
+                "source_type": "manual",
+                "source_url": "https://example.invalid/popstarter",
+                "manual_note": "Manual setup required.",
+            })
+            manifest = build_package(plan, root)
+            manual = Path(manifest["package_root"]) / "MANUAL_SOURCES.txt"
+            text = manual.read_text()
+            self.assertIn("POPStarter", text)
+            self.assertIn("https://example.invalid/popstarter", text)
+            self.assertEqual(manifest["manual_sources"][0]["name"], "POPStarter")
+
+    def test_archive_tree_preserves_sidecar_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            extracted = root / "downloads" / "bundle" / "extracted" / "wrapper"
+            extracted.mkdir(parents=True)
+            (extracted / "bundle.elf").write_bytes(b"elf")
+            (extracted / "settings.cfg").write_text("keep-me")
+            plan["homebrews"].append({
+                "id": "bundle",
+                "name": "Bundle",
+                "folder": "Bundle",
+                "elf_names": ["bundle.elf"],
+                "install": {"mode": "archive-tree"},
+                "menu_targets": {"osdmenu": True, "opl": True},
+                "resolved": {"version": "1.0", "channel": "stable", "prerelease": False},
+            })
+            plan["downloads"]["bundle"] = {
+                "extracted_path": str(extracted.parent),
+                "elf_candidates": [str(extracted / "bundle.elf")],
+            }
+            manifest = build_package(plan, root)
+            storage = Path(manifest["package_root"]) / manifest["storage_folder"]
+            self.assertEqual((storage / "APPS" / "Bundle" / "settings.cfg").read_text(), "keep-me")
+            self.assertTrue((storage / "APPS" / "Bundle" / "bundle.elf").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

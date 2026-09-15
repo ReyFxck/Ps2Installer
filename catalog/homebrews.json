@@ -1,127 +1,1705 @@
 {
-  "schema_version": 3,
+  "schema_version": 6,
   "homebrews": [
     {
       "id": "ps2bbl",
       "name": "PS2BBL",
+      "category": "Core",
+      "description": "Bootloader; required for the generated Memory Card setup.",
       "repository": "israpps/PlayStation2-Basic-BootLoader",
+      "source_url": "https://github.com/israpps/PlayStation2-Basic-BootLoader",
       "required": true,
       "default": true,
-      "channel_policy": "development-build",
       "recommended_channel": "development",
       "folder": "PS2BBL",
-      "elf_names": ["COMPRESSED_PS2BBL.ELF"],
+      "elf_names": [
+        "COMPRESSED_PS2BBL.ELF"
+      ],
       "channels": {
         "development": {
           "label": "Development (official)",
           "release_kind": "development",
           "tag": "latest",
-          "asset_patterns": ["^PS2BBL\\.7z$"],
+          "asset_patterns": [
+            "^PS2BBL\\.7z$"
+          ],
           "fallback_version_prefix": "dev"
         }
       },
       "menu_targets": {
         "osdmenu": false,
         "opl": false
+      },
+      "install": {
+        "mode": "archive-tree"
       }
     },
     {
       "id": "osdmenu",
       "name": "OSDMenu",
+      "category": "Core",
+      "description": "OSDSYS-style launcher used by the generated R1 shortcut.",
       "repository": "pcm720/OSDMenu",
+      "source_url": "https://github.com/pcm720/OSDMenu",
       "required": true,
       "default": true,
-      "channel_policy": "stable-only",
       "recommended_channel": "stable",
       "folder": "OSDMenu",
-      "elf_names": ["osdmenu.elf"],
+      "elf_names": [
+        "osdmenu.elf"
+      ],
       "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+)",
       "channels": {
         "stable": {
           "label": "Stable",
           "release_kind": "stable",
-          "asset_patterns": ["^osdmenu-v.*\\.zip$"]
+          "asset_patterns": [
+            "^osdmenu-v.*\\.zip$"
+          ]
         }
       },
       "menu_targets": {
         "osdmenu": false,
         "opl": true
+      },
+      "install": {
+        "mode": "elf-directory"
       }
     },
     {
       "id": "opl",
       "name": "Open PS2 Loader",
+      "category": "Loaders & Launchers",
+      "description": "Official OPL game/app loader.",
       "repository": "ps2homebrew/Open-PS2-Loader",
+      "source_url": "https://github.com/ps2homebrew/Open-PS2-Loader",
       "required": false,
       "default": true,
-      "channel_policy": "ask-stable-or-prerelease",
-      "recommended_channel": "prerelease",
+      "recommended_channel": "stable",
       "folder": "OPL",
-      "elf_names": ["OPNPS2LD.ELF"],
+      "elf_names": [
+        "OPNPS2LD.ELF"
+      ],
       "version_regex": "(?P<version>v\\d+\\.\\d+\\.\\d+(?:-Beta-\\d+-[0-9a-f]+)?)",
       "channels": {
         "stable": {
           "label": "Stable",
           "release_kind": "stable",
-          "asset_patterns": ["^OPNPS2LD-v.*\\.7z$"],
-          "exclude_asset_patterns": ["LANG", "VARIANT"]
+          "asset_patterns": [
+            "^OPNPS2LD-v.*\\.7z$"
+          ],
+          "exclude_asset_patterns": [
+            "LANG",
+            "VARIANT"
+          ]
         },
         "prerelease": {
           "label": "Beta / prerelease",
           "release_kind": "prerelease",
-          "asset_patterns": ["^OPNPS2LD\\.ELF$"]
+          "asset_patterns": [
+            "^OPNPS2LD\\.ELF$"
+          ]
         }
       },
       "menu_targets": {
         "osdmenu": true,
         "opl": false
+      },
+      "install": {
+        "mode": "single-elf"
       }
     },
     {
       "id": "wlaunchelf",
       "name": "wLaunchELF",
+      "category": "Utilities",
+      "description": "ELF launcher and file manager.",
       "repository": "ps2homebrew/wLaunchELF",
+      "source_url": "https://github.com/ps2homebrew/wLaunchELF",
       "required": false,
       "default": true,
-      "channel_policy": "development-build",
       "recommended_channel": "development",
       "folder": "wLaunchELF",
-      "elf_names": ["BOOT.ELF"],
+      "elf_names": [
+        "BOOT.ELF"
+      ],
       "channels": {
         "development": {
           "label": "Development",
           "release_kind": "development",
           "tag": "latest",
-          "asset_patterns": ["^BOOT\\.ELF$"],
+          "asset_patterns": [
+            "^BOOT\\.ELF$"
+          ],
           "fallback_version_prefix": "dev"
         }
       },
       "menu_targets": {
         "osdmenu": true,
         "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
       }
     },
     {
-      "id": "snesticlerevive",
-      "name": "SNESticleRevive",
-      "repository": "ReyFxck/SNESticleRevive",
+      "id": "ps2launcher",
+      "name": "PS2 Launcher",
+      "category": "Loaders & Launchers",
+      "description": "Modern standalone PS2 game launcher.",
+      "repository": "Irfanlesnar/PS2-Launcher",
+      "source_url": "https://github.com/Irfanlesnar/PS2-Launcher",
       "required": false,
       "default": false,
-      "channel_policy": "stable-only",
       "recommended_channel": "stable",
-      "folder": "SNESticleRevive",
-      "elf_names": ["SNESticle.elf", "SNESTICLE.ELF"],
-      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+[a-z]?)",
+      "folder": "PS2-Launcher",
+      "elf_names": [
+        "PS2-Launcher.ELF"
+      ],
+      "version_regex": "(?P<version>\\d+\\.\\d+\\.\\d+)",
       "channels": {
         "stable": {
           "label": "Stable",
           "release_kind": "stable",
-          "asset_patterns": ["^SNESticleRevive.*\\.zip$"]
+          "asset_patterns": [
+            "^PS2-Launcher-.*\\.ELF$"
+          ]
         }
       },
       "menu_targets": {
         "osdmenu": true,
         "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo Save Tool",
+      "category": "Utilities",
+      "description": "PS2/PS1 save and VMC management.",
+      "repository": "bucanero/apollo-ps2",
+      "source_url": "https://github.com/bucanero/apollo-ps2",
+      "required": false,
+      "default": false,
+      "recommended_channel": "stable",
+      "folder": "Apollo",
+      "elf_names": [
+        "APOLLO.ELF"
+      ],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": [
+            "^apollo-ps2\\.zip$"
+          ]
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "elf-directory"
+      }
+    },
+    {
+      "id": "dkwdrv",
+      "name": "DKWDRV",
+      "category": "PS1 on PS2",
+      "description": "Unified PS1DRV project for PS1 discs/USB on PS2.",
+      "repository": "DKWDRV/DKWDRV",
+      "source_url": "https://github.com/DKWDRV/DKWDRV",
+      "required": false,
+      "default": false,
+      "recommended_channel": "stable",
+      "folder": "DKWDRV",
+      "elf_names": [
+        "DKWDRV.ELF"
+      ],
+      "version_regex": "(?P<version>\\d+\\.\\d+\\.\\d+[A-Za-z]?)",
+      "channels": {
+        "stable": {
+          "label": "Stable / latest release",
+          "release_kind": "stable",
+          "asset_patterns": [
+            "^DKWDRV.*\\.ELF$"
+          ],
+          "exclude_asset_patterns": [
+            "DEBUG",
+            "SYMBOL"
+          ]
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "oplevolution",
+      "name": "OPL Evolution",
+      "category": "Experimental Loaders",
+      "description": "Experimental OPL fork; keep a known-good recovery OPL.",
+      "repository": "officialjuicedesigns/OPL-Evolution",
+      "source_url": "https://github.com/officialjuicedesigns/OPL-Evolution",
+      "required": false,
+      "default": false,
+      "recommended_channel": "prerelease",
+      "folder": "OPL-Evolution",
+      "elf_names": [
+        "OPL-EVOLUTION.ELF"
+      ],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+(?:-alpha)?)",
+      "channels": {
+        "prerelease": {
+          "label": "Alpha / prerelease",
+          "release_kind": "any",
+          "asset_patterns": [
+            ".*OPL-EVOLUTION.*\\.ELF$"
+          ]
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "snesticlerevive",
+      "name": "SNESticleRevive",
+      "category": "Emulators",
+      "description": "SNES emulator revival for PS2.",
+      "repository": "ReyFxck/SNESticleRevive",
+      "source_url": "https://github.com/ReyFxck/SNESticleRevive",
+      "required": false,
+      "default": false,
+      "recommended_channel": "stable",
+      "folder": "SNESticleRevive",
+      "elf_names": [
+        "SNESticle.elf",
+        "SNESTICLE.ELF"
+      ],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+[a-z]?)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": [
+            "^SNESticleRevive.*\\.zip$"
+          ]
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "elf-directory"
+      }
+    },
+    {
+      "id": "snesticleaurora",
+      "name": "SNESticle Aurora",
+      "category": "Emulators",
+      "description": "Highly experimental continuous SNESticle build.",
+      "repository": "itsveenee/SNESticleAurora",
+      "source_url": "https://github.com/itsveenee/SNESticleAurora/releases/tag/continuous",
+      "required": false,
+      "default": false,
+      "recommended_channel": "development",
+      "folder": "SNESticleAurora",
+      "elf_names": [
+        "SNESticle.elf"
+      ],
+      "channels": {
+        "development": {
+          "label": "Continuous / experimental",
+          "release_kind": "development",
+          "tag": "continuous",
+          "asset_patterns": [
+            "^SNESticle\\.elf$"
+          ],
+          "fallback_version_prefix": "continuous"
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "fceummps2",
+      "name": "FCEUmm-PS2",
+      "category": "Emulators",
+      "description": "Standalone NES/Famicom emulator.",
+      "repository": "ps2homebrew/Fceumm-PS2",
+      "source_url": "https://github.com/ps2homebrew/Fceumm-PS2",
+      "required": false,
+      "default": false,
+      "recommended_channel": "stable",
+      "folder": "FCEUmm-PS2",
+      "elf_names": [
+        "FCEUmm.ELF",
+        "FCEUMM.ELF",
+        "fceumm.elf"
+      ],
+      "version_regex": "(?P<version>v?\\d+\\.\\d+\\.\\d+)",
+      "channels": {
+        "stable": {
+          "label": "Stable",
+          "release_kind": "stable",
+          "asset_patterns": [
+            ".*\\.ELF$"
+          ],
+          "exclude_asset_patterns": [
+            "DEBUG",
+            "SYMBOL",
+            "SOURCE"
+          ]
+        },
+        "development": {
+          "label": "Development / latest",
+          "release_kind": "development",
+          "tag": "latest",
+          "asset_patterns": [
+            ".*\\.ELF$"
+          ],
+          "exclude_asset_patterns": [
+            "DEBUG",
+            "SYMBOL",
+            "SOURCE"
+          ],
+          "fallback_version_prefix": "dev"
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "retroarch",
+      "name": "RetroArch PS2 bundle",
+      "category": "RetroArch / Libretro",
+      "description": "Full PS2 RetroArch ELF/core bundle; stable or nightly.",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "stable",
+      "folder": "RetroArch",
+      "elf_names": [],
+      "channels": {
+        "stable": {
+          "label": "Stable 1.22.2",
+          "version": "1.22.2",
+          "url": "https://buildbot.libretro.com/stable/1.22.2/playstation/ps2/RetroArch_elf.7z",
+          "asset_name": "RetroArch_elf.7z",
+          "archive_type": "7z",
+          "prerelease": false
+        },
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/RetroArch_elf.7z",
+          "asset_name": "RetroArch_elf.7z",
+          "archive_type": "7z",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "collection"
+      }
+    },
+    {
+      "id": "libretro-fceumm",
+      "name": "Libretro: FCEUmm",
+      "category": "Libretro Nightly Cores",
+      "description": "NES / Famicom",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/FCEUmm",
+      "elf_names": [
+        "fceumm_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/fceumm_libretro_ps2.elf.zip",
+          "asset_name": "fceumm_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-quicknes",
+      "name": "Libretro: QuickNES",
+      "category": "Libretro Nightly Cores",
+      "description": "NES / Famicom",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/QuickNES",
+      "elf_names": [
+        "quicknes_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/quicknes_libretro_ps2.elf.zip",
+          "asset_name": "quicknes_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gambatte",
+      "name": "Libretro: Gambatte",
+      "category": "Libretro Nightly Cores",
+      "description": "Game Boy / Color",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Gambatte",
+      "elf_names": [
+        "gambatte_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gambatte_libretro_ps2.elf.zip",
+          "asset_name": "gambatte_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gearboy",
+      "name": "Libretro: Gearboy",
+      "category": "Libretro Nightly Cores",
+      "description": "Game Boy / Color",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Gearboy",
+      "elf_names": [
+        "gearboy_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gearboy_libretro_ps2.elf.zip",
+          "asset_name": "gearboy_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gearsystem",
+      "name": "Libretro: Gearsystem",
+      "category": "Libretro Nightly Cores",
+      "description": "Master System / Game Gear",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Gearsystem",
+      "elf_names": [
+        "gearsystem_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gearsystem_libretro_ps2.elf.zip",
+          "asset_name": "gearsystem_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-picodrive",
+      "name": "Libretro: PicoDrive",
+      "category": "Libretro Nightly Cores",
+      "description": "Mega Drive / 32X / Sega CD",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/PicoDrive",
+      "elf_names": [
+        "picodrive_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/picodrive_libretro_ps2.elf.zip",
+          "asset_name": "picodrive_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-mgba",
+      "name": "Libretro: mGBA",
+      "category": "Libretro Nightly Cores",
+      "description": "Game Boy Advance",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/mGBA",
+      "elf_names": [
+        "mgba_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/mgba_libretro_ps2.elf.zip",
+          "asset_name": "mgba_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gpsp",
+      "name": "Libretro: gpSP",
+      "category": "Libretro Nightly Cores",
+      "description": "Game Boy Advance",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/gpSP",
+      "elf_names": [
+        "gpsp_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gpsp_libretro_ps2.elf.zip",
+          "asset_name": "gpsp_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-snes9x2002",
+      "name": "Libretro: Snes9x 2002",
+      "category": "Libretro Nightly Cores",
+      "description": "SNES",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Snes9x-2002",
+      "elf_names": [
+        "snes9x2002_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/snes9x2002_libretro_ps2.elf.zip",
+          "asset_name": "snes9x2002_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-neocd",
+      "name": "Libretro: NeoCD",
+      "category": "Libretro Nightly Cores",
+      "description": "Neo Geo CD",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/NeoCD",
+      "elf_names": [
+        "neocd_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/neocd_libretro_ps2.elf.zip",
+          "asset_name": "neocd_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-mednafen_wswan",
+      "name": "Libretro: Mednafen WonderSwan",
+      "category": "Libretro Nightly Cores",
+      "description": "WonderSwan",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Mednafen-WonderSwan",
+      "elf_names": [
+        "mednafen_wswan_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/mednafen_wswan_libretro_ps2.elf.zip",
+          "asset_name": "mednafen_wswan_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-stella2014",
+      "name": "Libretro: Stella 2014",
+      "category": "Libretro Nightly Cores",
+      "description": "Atari 2600",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Stella-2014",
+      "elf_names": [
+        "stella2014_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/stella2014_libretro_ps2.elf.zip",
+          "asset_name": "stella2014_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-prboom",
+      "name": "Libretro: PrBoom",
+      "category": "Libretro Nightly Cores",
+      "description": "Doom engine",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/PrBoom",
+      "elf_names": [
+        "prboom_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/prboom_libretro_ps2.elf.zip",
+          "asset_name": "prboom_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-bluemsx",
+      "name": "Libretro: blueMSX",
+      "category": "Libretro Nightly Cores",
+      "description": "MSX",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/blueMSX",
+      "elf_names": [
+        "bluemsx_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/bluemsx_libretro_ps2.elf.zip",
+          "asset_name": "bluemsx_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-smsplus",
+      "name": "Libretro: SMS Plus GX",
+      "category": "Libretro Nightly Cores",
+      "description": "Master System / Game Gear",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/SMS-Plus-GX",
+      "elf_names": [
+        "smsplus_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/smsplus_libretro_ps2.elf.zip",
+          "asset_name": "smsplus_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-atari800",
+      "name": "Libretro: Atari800",
+      "category": "Libretro Nightly Cores",
+      "description": "Atari 8-bit",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Atari800",
+      "elf_names": [
+        "atari800_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/atari800_libretro_ps2.elf.zip",
+          "asset_name": "atari800_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-mednafen_lynx",
+      "name": "Libretro: Mednafen Lynx",
+      "category": "Libretro Nightly Cores",
+      "description": "Atari Lynx",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Mednafen-Lynx",
+      "elf_names": [
+        "mednafen_lynx_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/mednafen_lynx_libretro_ps2.elf.zip",
+          "asset_name": "mednafen_lynx_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gearcoleco",
+      "name": "Libretro: Gearcoleco",
+      "category": "Libretro Nightly Cores",
+      "description": "ColecoVision",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Gearcoleco",
+      "elf_names": [
+        "gearcoleco_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gearcoleco_libretro_ps2.elf.zip",
+          "asset_name": "gearcoleco_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-gearlynx",
+      "name": "Libretro: Gearlynx",
+      "category": "Libretro Nightly Cores",
+      "description": "Atari Lynx",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Gearlynx",
+      "elf_names": [
+        "gearlynx_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/gearlynx_libretro_ps2.elf.zip",
+          "asset_name": "gearlynx_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-fmsx",
+      "name": "Libretro: fMSX",
+      "category": "Libretro Nightly Cores",
+      "description": "MSX",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/fMSX",
+      "elf_names": [
+        "fmsx_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/fmsx_libretro_ps2.elf.zip",
+          "asset_name": "fmsx_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-tgbdual",
+      "name": "Libretro: TGB Dual",
+      "category": "Libretro Nightly Cores",
+      "description": "Game Boy / Color",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/TGB-Dual",
+      "elf_names": [
+        "tgbdual_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/tgbdual_libretro_ps2.elf.zip",
+          "asset_name": "tgbdual_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "libretro-handy",
+      "name": "Libretro: Handy",
+      "category": "Libretro Nightly Cores",
+      "description": "Atari Lynx",
+      "source_type": "direct",
+      "source_url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/",
+      "required": false,
+      "default": false,
+      "recommended_channel": "nightly",
+      "folder": "RetroArch-Cores/Handy",
+      "elf_names": [
+        "handy_libretro_ps2.elf"
+      ],
+      "channels": {
+        "nightly": {
+          "label": "Nightly / latest",
+          "version": "nightly-latest",
+          "url": "https://buildbot.libretro.com/nightly/playstation/ps2/latest/handy_libretro_ps2.elf.zip",
+          "asset_name": "handy_libretro_ps2.elf.zip",
+          "archive_type": "zip",
+          "prerelease": true
+        }
+      },
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      },
+      "install": {
+        "mode": "single-elf"
+      }
+    },
+    {
+      "id": "popstarter",
+      "name": "POPStarter",
+      "category": "PS1 on PS2",
+      "description": "PS1 launcher using Sony POPS components supplied separately.",
+      "source_type": "manual",
+      "source_url": "https://www.psx-place.com/resources/popstarter.683/",
+      "manual_note": "POPStarter itself can be obtained from PSX-Place, but Sony POPS/BIOS files are not bundled. Follow the project instructions and use only components you are legally entitled to use.",
+      "required": false,
+      "default": false,
+      "folder": "popstarter",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "popsloader",
+      "name": "POPSLoader Fork",
+      "category": "PS1 on PS2",
+      "description": "Modern POPStarter front-end for MMCE/MX4SIO/USB/APA/exFAT.",
+      "source_type": "manual",
+      "source_url": "https://www.psx-place.com/resources/fork-popsloader-for-mmce-mx4sio-usb-and-apahdd.1665/",
+      "manual_note": "Hardware/storage-specific setup. The installer records the source but does not bundle POPStarter or Sony POPS components.",
+      "required": false,
+      "default": false,
+      "folder": "popsloader",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "ember",
+      "name": "Ember",
+      "category": "PS1 on PS2",
+      "description": "Experimental PS1 emulator/backend for PS2.",
+      "source_type": "manual",
+      "source_url": "https://github.com/Gageformer/Ember",
+      "manual_note": "Ember expects ember.elf plus a user-supplied legally dumped bios.bin and your own games. No BIOS is downloaded or copied by Ps2Installer.",
+      "required": false,
+      "default": false,
+      "folder": "ember",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "project-titan",
+      "name": "Project Titan Magenta Edition",
+      "category": "Experimental Systems",
+      "description": "Experimental PS2 operating-system/platform project.",
+      "source_type": "manual",
+      "source_url": "https://github.com/sobecapaklebs-dev/project-titan-magenta-edition",
+      "manual_note": "Project Titan has its own boot chain/runtime/package system and is not treated as a normal APPS ELF. Follow its deployment documentation.",
+      "required": false,
+      "default": false,
+      "folder": "project-titan",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "retrolauncher",
+      "name": "RETROLauncher",
+      "category": "Frontends",
+      "description": "Lua retro frontend integrating RetroArch, POPStarter, Neutrino, wLaunchELF and OPL.",
+      "source_type": "manual",
+      "source_url": "https://github.com/Spaghetticode-Boon-Tobias/RETROLauncher",
+      "manual_note": "No simple GitHub release asset is published; follow the repository documentation and copy the complete RETROLauncher environment.",
+      "required": false,
+      "default": false,
+      "folder": "retrolauncher",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "pgen",
+      "name": "PGEN",
+      "category": "Legacy Emulators",
+      "description": "Sega Genesis / Mega Drive emulator.",
+      "source_type": "manual",
+      "source_url": "https://github.com/ps2homebrew/pgen",
+      "manual_note": "Legacy project/mirror without a reliable current GitHub release asset; use the linked project documentation/source.",
+      "required": false,
+      "default": false,
+      "folder": "pgen",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "neutrino",
+      "name": "Neutrino",
+      "category": "Loaders & Launchers",
+      "description": "Small modular PS2 game loader used by NHDDL and other frontends.",
+      "source_type": "manual",
+      "source_url": "https://github.com/rickgaiser/neutrino",
+      "manual_note": "Neutrino requires its module/config tree, so this catalog keeps it manual until the installer has version-specific module deployment rules.",
+      "required": false,
+      "default": false,
+      "folder": "neutrino",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "nhddl",
+      "name": "NHDDL",
+      "category": "Loaders & Launchers",
+      "description": "Launcher/front-end for Neutrino with exFAT/MMCE/APA support.",
+      "source_type": "manual",
+      "source_url": "https://github.com/pcm720/nhddl",
+      "manual_note": "NHDDL is tightly coupled to compatible Neutrino builds/configuration. Follow the release notes for the matching Neutrino version.",
+      "required": false,
+      "default": false,
+      "folder": "nhddl",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "wopl",
+      "name": "wOPL",
+      "category": "Experimental Loaders",
+      "description": "Continuation of unofficial OPL builds.",
+      "source_type": "manual",
+      "source_url": "https://github.com/ps2homebrew/wOPL/releases",
+      "manual_note": "Releases contain multiple build variants. Choose the desired variant manually rather than letting Ps2Installer guess.",
+      "required": false,
+      "default": false,
+      "folder": "wopl",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "snesstation",
+      "name": "SNES Station",
+      "category": "Legacy / Community",
+      "description": "SNES emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "snesstation",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "ps2psxe",
+      "name": "PS2PSXe",
+      "category": "Legacy / Community",
+      "description": "PlayStation 1 emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "ps2psxe",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "psms-reloaded",
+      "name": "PSMS Reloaded",
+      "category": "Legacy / Community",
+      "description": "Master System / Game Gear emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "psms-reloaded",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "infogb",
+      "name": "InfoGB",
+      "category": "Legacy / Community",
+      "description": "Game Boy / Color emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "infogb",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "tempgba",
+      "name": "ReGBA / TempGBA",
+      "category": "Legacy / Community",
+      "description": "Game Boy Advance emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "tempgba",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "neocd-legacy",
+      "name": "NeoCD PS2",
+      "category": "Legacy / Community",
+      "description": "Neo Geo CD emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "neocd-legacy",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "daedalusx64",
+      "name": "DaedalusX64 PS2",
+      "category": "Legacy / Community",
+      "description": "Nintendo 64 emulator (WIP)",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "daedalusx64",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "ps2mame",
+      "name": "PS2MAME",
+      "category": "Legacy / Community",
+      "description": "Arcade / MAME emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "ps2mame",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "dosbox-ps2",
+      "name": "DOSBox PS2",
+      "category": "Legacy / Community",
+      "description": "DOS/x86 emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "dosbox-ps2",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "scummvm-ps2",
+      "name": "ScummVM PS2",
+      "category": "Legacy / Community",
+      "description": "Adventure game engine",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "scummvm-ps2",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "wonderstation",
+      "name": "WonderStation",
+      "category": "Legacy / Community",
+      "description": "WonderSwan emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "wonderstation",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "uae-amigaps2",
+      "name": "UAE AmigaPS2",
+      "category": "Legacy / Community",
+      "description": "Amiga emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "uae-amigaps2",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "ps2pce",
+      "name": "PS2PCE",
+      "category": "Legacy / Community",
+      "description": "PC Engine emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "ps2pce",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "pvcs-reloaded",
+      "name": "PVCS Reloaded",
+      "category": "Legacy / Community",
+      "description": "Atari 2600 emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "pvcs-reloaded",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "colemps2",
+      "name": "ColemPS2",
+      "category": "Legacy / Community",
+      "description": "ColecoVision emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "colemps2",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "neopop-ps2",
+      "name": "NeoPop PS2",
+      "category": "Legacy / Community",
+      "description": "Neo Geo Pocket emulator",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "neopop-ps2",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "radmenu",
+      "name": "RadMenu",
+      "category": "Legacy / Community",
+      "description": "Homebrew launcher",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "radmenu",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
+      }
+    },
+    {
+      "id": "xebplus",
+      "name": "XEB+",
+      "category": "Legacy / Community",
+      "description": "XMB-style PS2 launcher",
+      "source_type": "manual",
+      "source_url": "https://github.com/sammwyy/awesome-ps2",
+      "manual_note": "Legacy/community project. Use the Awesome PS2 index to reach the currently maintained source/forum link; Ps2Installer does not mirror old binaries.",
+      "required": false,
+      "default": false,
+      "folder": "xebplus",
+      "elf_names": [],
+      "channels": {},
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      },
+      "install": {
+        "mode": "manual"
       }
     }
   ]
