@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Initial Ps2Installer setup planner.
-
-This first milestone intentionally does not download or copy PS2 binaries yet.
-It records the user's hardware/storage choices and selected homebrew so the
-package generator can consume a stable plan in the next milestone.
-"""
+"""Interactive Ps2Installer prototype with live GitHub release resolution."""
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 from typing import Any
+
+from src.downloads import DownloadError, download_release
+from src.releases import GitHubError, GitHubReleaseResolver, ResolvedRelease
 
 ROOT = Path(__file__).resolve().parent
 CATALOG_PATH = ROOT / "catalog" / "homebrews.json"
 OUTPUT_DIR = ROOT / "output"
 PLAN_PATH = OUTPUT_DIR / "selection.json"
+DOWNLOAD_ROOT = OUTPUT_DIR / "downloads"
 
 LANGUAGES = [
     ("pt-BR", "Português (Brasil)"),
@@ -41,65 +41,115 @@ STORAGES = [
 
 TEXT = {
     "pt-BR": {
-        "title": "Ps2Installer - planejador inicial",
-        "language": "Escolha o idioma",
+        "title": "Ps2Installer - protótipo",
         "memory_card": "Qual Memory Card você usa?",
         "storage": "Onde o OSDMenu e os homebrews devem ficar?",
         "homebrew": "Seleção de homebrews",
         "install": "Instalar {name}?",
         "required": "{name}: obrigatório para este modo",
+        "resolving": "Consultando versões atuais no GitHub...",
+        "resolve_failed": "Não foi possível consultar {name}: {error}",
+        "available": "Versões disponíveis:",
+        "choose_channel": "Escolha o canal para {name}",
         "saved": "Plano salvo em: {path}",
-        "next": "Esta versão ainda não baixa/copia ELFs; ela registra o plano para a próxima etapa do instalador.",
         "summary": "Resumo",
         "card": "Memory Card",
         "selected_storage": "Armazenamento",
         "selected_apps": "Homebrews selecionados",
         "none": "nenhum opcional",
         "invalid": "Opção inválida. Tente novamente.",
+        "download": "Baixar agora os arquivos selecionados?",
+        "downloading": "Baixando {name} {version}...",
+        "downloaded": "OK: {name} -> {path}",
+        "download_failed": "Falha ao baixar {name}: {error}",
+        "download_warning": "Aviso para {name}: {warning}",
+        "unresolved": "{name} será mantido no plano sem versão resolvida.",
+        "done": "Etapa concluída.",
     },
     "en": {
-        "title": "Ps2Installer - initial setup planner",
-        "language": "Choose language",
+        "title": "Ps2Installer - prototype",
         "memory_card": "Which Memory Card do you use?",
         "storage": "Where should OSDMenu and homebrew be stored?",
         "homebrew": "Homebrew selection",
         "install": "Install {name}?",
         "required": "{name}: required for this mode",
+        "resolving": "Checking current GitHub releases...",
+        "resolve_failed": "Could not resolve {name}: {error}",
+        "available": "Available versions:",
+        "choose_channel": "Choose a channel for {name}",
         "saved": "Plan saved to: {path}",
-        "next": "This version does not download/copy ELFs yet; it records the plan for the next installer milestone.",
         "summary": "Summary",
         "card": "Memory Card",
         "selected_storage": "Storage",
         "selected_apps": "Selected homebrew",
         "none": "no optional apps",
         "invalid": "Invalid option. Try again.",
+        "download": "Download the selected files now?",
+        "downloading": "Downloading {name} {version}...",
+        "downloaded": "OK: {name} -> {path}",
+        "download_failed": "Failed to download {name}: {error}",
+        "download_warning": "Warning for {name}: {warning}",
+        "unresolved": "{name} will remain in the plan without a resolved version.",
+        "done": "Step completed.",
     },
     "es": {
-        "title": "Ps2Installer - planificador inicial",
-        "language": "Elige el idioma",
+        "title": "Ps2Installer - prototipo",
         "memory_card": "¿Qué Memory Card utilizas?",
         "storage": "¿Dónde deben guardarse OSDMenu y los homebrews?",
         "homebrew": "Selección de homebrews",
         "install": "¿Instalar {name}?",
         "required": "{name}: obligatorio para este modo",
+        "resolving": "Consultando versiones actuales en GitHub...",
+        "resolve_failed": "No se pudo consultar {name}: {error}",
+        "available": "Versiones disponibles:",
+        "choose_channel": "Elige un canal para {name}",
         "saved": "Plan guardado en: {path}",
-        "next": "Esta versión todavía no descarga/copia ELFs; registra el plan para la siguiente etapa del instalador.",
         "summary": "Resumen",
         "card": "Memory Card",
         "selected_storage": "Almacenamiento",
         "selected_apps": "Homebrews seleccionados",
         "none": "ninguna aplicación opcional",
         "invalid": "Opción inválida. Inténtalo de nuevo.",
+        "download": "¿Descargar ahora los archivos seleccionados?",
+        "downloading": "Descargando {name} {version}...",
+        "downloaded": "OK: {name} -> {path}",
+        "download_failed": "Error al descargar {name}: {error}",
+        "download_warning": "Aviso para {name}: {warning}",
+        "unresolved": "{name} permanecerá en el plan sin versión resuelta.",
+        "done": "Etapa completada.",
     },
 }
 
 
-def numbered_choice(title: str, options: list[tuple[str, str]], invalid_text: str) -> str:
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build a PS2 homebrew installation plan.")
+    parser.add_argument(
+        "--no-download",
+        action="store_true",
+        help="Resolve versions and write selection.json without downloading assets.",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Skip GitHub release resolution and only create a local selection plan.",
+    )
+    return parser.parse_args()
+
+
+def numbered_choice(
+    title: str,
+    options: list[tuple[str, str]],
+    invalid_text: str,
+    default_id: str | None = None,
+) -> str:
     while True:
         print(f"\n{title}")
-        for index, (_, label) in enumerate(options, start=1):
-            print(f"  [{index}] {label}")
+        for index, (option_id, label) in enumerate(options, start=1):
+            default_mark = " *" if option_id == default_id else ""
+            print(f"  [{index}] {label}{default_mark}")
         raw = input("> ").strip()
+        if not raw and default_id is not None:
+            return default_id
         if raw.isdigit():
             index = int(raw) - 1
             if 0 <= index < len(options):
@@ -128,20 +178,71 @@ def get_by_id(items: list[dict[str, str]], item_id: str) -> dict[str, str]:
     return next(item for item in items if item["id"] == item_id)
 
 
-def main() -> None:
-    # Language prompt is intentionally readable before a locale is selected.
+def choose_language() -> str:
     print("Ps2Installer")
     print("Choose language / Escolha o idioma / Elige el idioma")
     for index, (_, label) in enumerate(LANGUAGES, start=1):
         print(f"  [{index}] {label}")
-
     while True:
         raw = input("> ").strip()
         if raw.isdigit() and 1 <= int(raw) <= len(LANGUAGES):
-            language = LANGUAGES[int(raw) - 1][0]
-            break
+            return LANGUAGES[int(raw) - 1][0]
         print("Invalid / Inválido")
 
+
+def print_release_options(options: list[ResolvedRelease]) -> None:
+    for option in options:
+        status = "prerelease" if option.prerelease else "stable"
+        print(f"  - {option.channel_label}: {option.version} ({status})")
+
+
+def select_release_option(
+    app: dict[str, Any],
+    options: list[ResolvedRelease],
+    text: dict[str, str],
+) -> ResolvedRelease | None:
+    if not options:
+        return None
+    if len(options) == 1:
+        return options[0]
+
+    recommended = app.get("recommended_channel")
+    option_pairs = [
+        (option.channel, f"{option.channel_label}: {option.version}")
+        for option in options
+    ]
+    default_id = recommended if any(o.channel == recommended for o in options) else None
+    selected_channel = numbered_choice(
+        text["choose_channel"].format(name=app["name"]),
+        option_pairs,
+        text["invalid"],
+        default_id=default_id,
+    )
+    return next(option for option in options if option.channel == selected_channel)
+
+
+def app_plan_entry(app: dict[str, Any], resolved: ResolvedRelease | None) -> dict[str, Any]:
+    return {
+        "id": app["id"],
+        "name": app["name"],
+        "repository": app.get("repository"),
+        "folder": app.get("folder"),
+        "elf_names": app.get("elf_names", []),
+        "menu_targets": app.get("menu_targets", {}),
+        "resolved": resolved.to_dict() if resolved else None,
+    }
+
+
+def write_plan(plan: dict[str, Any]) -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    with PLAN_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(plan, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+
+
+def main() -> None:
+    args = parse_args()
+    language = choose_language()
     t = TEXT[language]
     print(f"\n=== {t['title']} ===")
 
@@ -157,52 +258,103 @@ def main() -> None:
     )
 
     catalog = load_catalog()
-    selected: list[dict[str, Any]] = []
+    resolver = None if args.offline else GitHubReleaseResolver()
+    selected: list[tuple[dict[str, Any], ResolvedRelease | None]] = []
 
     print(f"\n=== {t['homebrew']} ===")
+    if resolver:
+        print(t["resolving"])
+
     for app in catalog["homebrews"]:
+        options: list[ResolvedRelease] = []
+        resolution_error: str | None = None
+        if resolver:
+            try:
+                options = resolver.resolve_options(app)
+            except GitHubError as exc:
+                resolution_error = str(exc)
+
+        print(f"\n{app['name']}")
+        if options:
+            print(t["available"])
+            print_release_options(options)
+        elif resolution_error:
+            print(t["resolve_failed"].format(name=app["name"], error=resolution_error))
+
         if app.get("required", False):
             print(t["required"].format(name=app["name"]))
-            selected.append(app)
+            chosen = select_release_option(app, options, t)
+            if chosen is None:
+                print(t["unresolved"].format(name=app["name"]))
+            selected.append((app, chosen))
             continue
 
-        channel_hint = app.get("channel_policy", "auto-detect")
-        print(f"\n{app['name']} ({channel_hint})")
-        if yes_no(t["install"].format(name=app["name"]), default=app.get("default", False)):
-            selected.append(app)
+        if not yes_no(
+            t["install"].format(name=app["name"]),
+            default=app.get("default", False),
+        ):
+            continue
+
+        chosen = select_release_option(app, options, t)
+        if chosen is None:
+            print(t["unresolved"].format(name=app["name"]))
+        selected.append((app, chosen))
 
     card = get_by_id(MEMORY_CARDS, card_id)
     storage = get_by_id(STORAGES, storage_id)
-
-    plan = {
-        "schema_version": 1,
+    plan: dict[str, Any] = {
+        "schema_version": 2,
         "language": language,
         "memory_card": card,
         "storage": storage,
-        "homebrews": [
-            {
-                "id": app["id"],
-                "name": app["name"],
-                "repository": app.get("repository"),
-                "channel_policy": app.get("channel_policy", "auto-detect"),
-            }
-            for app in selected
-        ],
+        "homebrews": [app_plan_entry(app, resolved) for app, resolved in selected],
+        "downloads": {},
     }
+    write_plan(plan)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    with PLAN_PATH.open("w", encoding="utf-8") as handle:
-        json.dump(plan, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-
-    optional_names = [app["name"] for app in selected if not app.get("required", False)]
+    optional_names = [
+        f"{app['name']} {resolved.version if resolved else '(unresolved)'}"
+        for app, resolved in selected
+        if not app.get("required", False)
+    ]
 
     print(f"\n=== {t['summary']} ===")
     print(f"{t['card']}: {card['name']}")
     print(f"{t['selected_storage']}: {storage['name']}")
     print(f"{t['selected_apps']}: {', '.join(optional_names) if optional_names else t['none']}")
     print(t["saved"].format(path=PLAN_PATH.relative_to(ROOT)))
-    print(t["next"])
+
+    should_download = False
+    if not args.no_download and not args.offline:
+        resolved_count = sum(1 for _, resolved in selected if resolved is not None)
+        if resolved_count:
+            should_download = yes_no(t["download"], default=True)
+
+    if should_download:
+        for app, resolved in selected:
+            if resolved is None:
+                continue
+            print(t["downloading"].format(name=app["name"], version=resolved.version))
+            try:
+                result = download_release(
+                    resolved,
+                    DOWNLOAD_ROOT,
+                    elf_names=list(app.get("elf_names", [])),
+                )
+                plan["downloads"][app["id"]] = result
+                print(t["downloaded"].format(name=app["name"], path=result["asset_path"]))
+                if result.get("warning"):
+                    print(
+                        t["download_warning"].format(
+                            name=app["name"], warning=result["warning"]
+                        )
+                    )
+            except DownloadError as exc:
+                plan["downloads"][app["id"]] = {"error": str(exc)}
+                print(t["download_failed"].format(name=app["name"], error=exc))
+            write_plan(plan)
+
+    print(t["done"])
 
 
 if __name__ == "__main__":
