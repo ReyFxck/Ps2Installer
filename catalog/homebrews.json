@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "homebrews": [
+    {
+      "id": "osdmenu",
+      "name": "OSDMenu",
+      "repository": "pcm720/OSDMenu",
+      "required": true,
+      "default": true,
+      "channel_policy": "auto-detect",
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": true
+      }
+    },
+    {
+      "id": "opl",
+      "name": "Open PS2 Loader",
+      "repository": "ps2homebrew/Open-PS2-Loader",
+      "required": false,
+      "default": true,
+      "channel_policy": "ask-stable-or-prerelease",
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": false
+      }
+    },
+    {
+      "id": "wlaunchelf",
+      "name": "wLaunchELF",
+      "repository": "ps2homebrew/wLaunchELF",
+      "required": false,
+      "default": true,
+      "channel_policy": "development-build",
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      }
+    },
+    {
+      "id": "snesticlerevive",
+      "name": "SNESticleRevive",
+      "repository": "ReyFxck/SNESticleRevive",
+      "required": false,
+      "default": false,
+      "channel_policy": "auto-detect",
+      "menu_targets": {
+        "osdmenu": true,
+        "opl": true
+      }
+    }
+  ]
+}
