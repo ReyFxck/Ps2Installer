@@ -26,9 +26,36 @@ O **PS2BBL fica no Memory Card/VMC**. O OSDMenu e os homebrews maiores ficam no 
 
 ## Requisitos
 
-- Python 3.10 ou mais recente recomendado;
-- internet para consultar e baixar releases;
-- `py7zr` para pacotes `.7z`.
+Antes de clonar e executar o Ps2Installer, instale:
+
+- **Python 3.10 ou mais recente** — obrigatório para executar o instalador: https://www.python.org/downloads/
+- **Git** — necessário caso você vá baixar o projeto com `git clone`: https://git-scm.com/downloads
+- conexão com a internet — usada para consultar e baixar os releases atuais dos homebrews.
+
+No Windows, durante a instalação do Python, marque a opção **Add Python to PATH**. Depois, confirme que tudo está instalado corretamente:
+
+```bash
+python --version
+git --version
+```
+
+Em alguns sistemas o comando do Python é `python3`:
+
+```bash
+python3 --version
+```
+
+Se você preferir baixar o repositório pelo botão **Code > Download ZIP** do GitHub, o Git não é obrigatório.
+
+Depois de clonar ou extrair o ZIP, instale as dependências Python:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+O `py7zr`, necessário para extrair releases distribuídos em `.7z`, é instalado por esse arquivo de requisitos.
+
+### Instalação pelo Git
 
 ```bash
 git clone https://github.com/ReyFxck/Ps2Installer.git
