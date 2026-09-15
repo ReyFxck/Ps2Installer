@@ -10,9 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from .config import LANGUAGES, MEMORY_CARDS, STORAGES, TEXT
+from .boot import boot_method_meta
+from .compatibility import check_compatibility
 from .dependencies import DependencyError, ensure_py7zr, find_native_7z, module_available, running_on_android
 from .downloads import DownloadError, download_release
 from .package import PackageError, build_package
+from .recipes import recipe_for
+from .report import write_installation_report
+from .update import UpdateError, apply_package_update, scan_existing_apps
 from .releases import GitHubError, GitHubReleaseResolver, ResolvedRelease
 from .ui import banner, clear_screen, error, info, ok, section, success_box, warn
 
@@ -31,6 +36,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-clear", action="store_true", help="Do not clear the terminal screen.")
     parser.add_argument("--keep-downloads", action="store_true", help="Keep downloaded/extracted temporary files for debugging.")
     parser.add_argument("--output", metavar="PATH", help="Use PATH as the output folder.")
+    parser.add_argument("--update-memory-card-root", metavar="PATH", help="Update an existing Memory Card/VMC root.")
+    parser.add_argument("--update-storage-root", metavar="PATH", help="Update an existing APPS storage root.")
+    parser.add_argument("--local-elf", action="append", default=[], metavar="PATH", help="Import a local ELF (repeatable).")
     return parser.parse_args()
 
 
@@ -89,7 +97,16 @@ def parse_multi_selection(raw: str, option_count: int, default_indices: list[int
     return selected, jump
 
 
-def choose_optional_apps(apps: list[dict[str, Any]], text: dict[str, str]) -> tuple[list[dict[str, Any]], bool]:
+def parse_app_selection(raw: str, option_count: int, default_indices: list[int]) -> tuple[list[int], bool, bool]:
+    """Extended selector: numeric/A/P plus L for local ELF import."""
+    tokens = [token for token in re.split(r"[,\s]+", raw.strip()) if token]
+    local = any(token.upper() == "L" for token in tokens)
+    filtered = [token for token in tokens if token.upper() != "L"]
+    selected, jump = parse_multi_selection(" ".join(filtered), option_count, default_indices)
+    return selected, jump, local
+
+
+def choose_optional_apps(apps: list[dict[str, Any]], text: dict[str, str]) -> tuple[list[dict[str, Any]], bool, bool]:
     default_indices = [index for index, app in enumerate(apps) if app.get("default", False)]
     print()
     current_category: str | None = None
@@ -113,11 +130,156 @@ def choose_optional_apps(apps: list[dict[str, Any]], text: dict[str, str]) -> tu
     while True:
         raw = input(f"\n{text['multi_prompt']}\n> ")
         try:
-            indices, jump = parse_multi_selection(raw, len(apps), default_indices)
+            indices, jump, local = parse_app_selection(raw, len(apps), default_indices)
         except ValueError:
             warn(text["invalid"])
             continue
-        return [apps[index] for index in indices], jump
+        return [apps[index] for index in indices], jump, local
+
+
+def _safe_local_folder(name: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._+-]+", "-", name.strip()).strip("-._")
+    return cleaned or "LocalApp"
+
+
+def _existing_directory(raw_path: str | Path) -> Path:
+    expanded = os.path.expandvars(os.path.expanduser(str(raw_path).strip()))
+    if not expanded:
+        raise ValueError("empty path")
+    path = Path(expanded)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path = path.resolve()
+    if not path.is_dir():
+        raise ValueError(f"{path} is not an existing directory")
+    return path
+
+
+def _prompt_existing_directory(prompt: str) -> Path:
+    while True:
+        raw = input(f"{prompt}: ").strip()
+        try:
+            return _existing_directory(raw)
+        except (OSError, ValueError) as exc:
+            warn(str(exc))
+
+
+def _local_app_from_path(path: Path, text: dict[str, str], ask_name: bool = True) -> dict[str, Any]:
+    if not path.is_file() or path.suffix.lower() != ".elf":
+        raise ValueError(text["local_invalid"].format(path=path))
+    default_name = path.stem
+    name = default_name
+    if ask_name:
+        raw_name = input(f"{text['local_name']} [{default_name}]: ").strip()
+        if raw_name:
+            name = raw_name
+    folder = _safe_local_folder(name)
+    return {
+        "id": f"local-{folder.lower()}",
+        "name": name,
+        "category": "Local",
+        "description": "User-supplied local ELF",
+        "source_type": "local",
+        "source_url": None,
+        "local_path": str(path.resolve()),
+        "required": False,
+        "default": False,
+        "folder": folder,
+        "elf_names": [path.name],
+        "menu_targets": {"osdmenu": True, "opl": True},
+        "install": {"mode": "single-elf"},
+        "recipe": {"id": "local-elf", "mode": "single-elf", "notes": ["User-supplied local ELF."]},
+    }
+
+
+def collect_local_apps(text: dict[str, str], initial_paths: list[str] | None = None, interactive: bool = False) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for raw in initial_paths or []:
+        path = Path(os.path.expanduser(os.path.expandvars(raw))).resolve()
+        result.append(_local_app_from_path(path, text, ask_name=False))
+    if not interactive:
+        return result
+    info(text["local_help"])
+    while True:
+        raw = input(f"{text['local_path']}: ").strip()
+        if not raw:
+            break
+        try:
+            app = _local_app_from_path(Path(os.path.expanduser(os.path.expandvars(raw))).resolve(), text)
+        except ValueError as exc:
+            warn(str(exc))
+            continue
+        # Avoid duplicate IDs by suffixing the folder when needed.
+        used = {item["id"] for item in result}
+        base_id = app["id"]
+        counter = 2
+        while app["id"] in used:
+            app["id"] = f"{base_id}-{counter}"
+            app["folder"] = f"{app['folder']}-{counter}"
+            counter += 1
+        result.append(app)
+        ok(text["local_added"].format(name=app["name"], path=app["local_path"]))
+        if not yes_no(text["local_more"], default=False):
+            break
+    return result
+
+
+def choose_boot_method(text: dict[str, str]) -> dict[str, Any]:
+    method_id = numbered_choice(
+        text["boot_method"],
+        [
+            ("existing", text["boot_existing"]),
+            ("opentuna", text["boot_opentuna"]),
+            ("dev1", text["boot_dev1"]),
+            ("system-update", text["boot_system_update"]),
+            ("hdd-kelf", text["boot_hdd_kelf"]),
+        ],
+        text["invalid"],
+        default_id="existing",
+    )
+    meta = boot_method_meta(method_id)
+    meta["name"] = dict([
+        ("existing", text["boot_existing"]),
+        ("opentuna", text["boot_opentuna"]),
+        ("dev1", text["boot_dev1"]),
+        ("system-update", text["boot_system_update"]),
+        ("hdd-kelf", text["boot_hdd_kelf"]),
+    ])[method_id]
+    return meta
+
+
+def choose_existing_removals(existing_apps: list[dict[str, Any]], text: dict[str, str]) -> list[str]:
+    if not existing_apps or not yes_no(text["remove_existing_prompt"], default=False):
+        return []
+    print()
+    for index, app in enumerate(existing_apps, start=1):
+        print(f"  [{index}] {app['name']}  (APPS/{app['folder']})")
+    info(text["remove_help"])
+    while True:
+        raw = input("\n> ").strip()
+        if not raw:
+            return []
+        try:
+            indices, _jump = parse_multi_selection(raw, len(existing_apps), [])
+        except ValueError:
+            warn(text["invalid"])
+            continue
+        return [str(existing_apps[index]["folder"]) for index in indices]
+
+
+def _show_compatibility(findings: list[dict[str, str]], text: dict[str, str]) -> None:
+    if not findings:
+        return
+    print(f"\n{text['compatibility_header']}")
+    for item in findings:
+        severity = str(item.get("severity") or "info")
+        message = str(item.get("message") or "")
+        if severity == "warning":
+            warn(message)
+        elif severity == "error":
+            error(message)
+        else:
+            info(message)
 
 
 def _valid_apa_partition(name: str) -> bool:
@@ -271,10 +433,12 @@ def app_plan_entry(app: dict[str, Any], resolved: ResolvedRelease | None) -> dic
         "source_type": app.get("source_type", "github"),
         "source_url": app.get("source_url"),
         "manual_note": app.get("manual_note"),
+        "local_path": app.get("local_path"),
         "folder": app.get("folder"),
         "elf_names": app.get("elf_names", []),
         "menu_targets": app.get("menu_targets", {}),
         "install": app.get("install", {"mode": "single-elf"}),
+        "recipe": recipe_for(app),
         "resolved": resolved.to_dict() if resolved else None,
     }
 
@@ -326,7 +490,7 @@ def _resolve_app(
     offline: bool,
 ) -> tuple[list[ResolvedRelease], str | None]:
     source_type = str(app.get("source_type") or "github")
-    if source_type == "manual":
+    if source_type in {"manual", "local"}:
         return [], None
     if offline and source_type == "github":
         return [], None
@@ -362,6 +526,12 @@ def main() -> None:
     output_root = choose_output_root(args, t)
     plan_path = output_root / "selection.json"
     ok(t["output_selected"].format(path=display_path(output_root)))
+    workflow_mode = "update" if (args.update_memory_card_root or args.update_storage_root) else numbered_choice(
+        t["workflow_mode"],
+        [("new", t["workflow_new"]), ("update", t["workflow_update"])],
+        t["invalid"],
+        default_id="new",
+    )
 
     section(2, TOTAL_STEPS, t["step_hardware"])
     info(t["hardware_help"])
@@ -375,14 +545,38 @@ def main() -> None:
     elif storage_id == "hdd-exfat":
         warn(t["hdd_exfat_notice"])
 
+    boot = choose_boot_method(t)
+    existing_apps: list[dict[str, Any]] = []
+    workflow: dict[str, Any] = {"mode": workflow_mode, "rebuild_menus": True, "remove_folders": []}
+    if workflow_mode == "update":
+        try:
+            mc_target = _existing_directory(args.update_memory_card_root) if args.update_memory_card_root else _prompt_existing_directory(t["update_mc_path"])
+            storage_target = _existing_directory(args.update_storage_root) if args.update_storage_root else _prompt_existing_directory(t["update_storage_path"])
+        except (OSError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
+        existing_apps = scan_existing_apps(storage_target)
+        info(t["existing_apps_found"].format(count=len(existing_apps)))
+        remove_folders = choose_existing_removals(existing_apps, t)
+        rebuild_menus = True if remove_folders else yes_no(t["rebuild_menus"], default=True)
+        boot_default = str(boot.get("id") or "") in {"opentuna", "dev1"}
+        copy_boot_elf = yes_no(t["update_boot_elf"], default=boot_default)
+        workflow.update({
+            "memory_card_root": str(mc_target),
+            "storage_root": str(storage_target),
+            "remove_folders": remove_folders,
+            "rebuild_menus": rebuild_menus,
+            "copy_boot_elf": copy_boot_elf,
+        })
+
     section(3, TOTAL_STEPS, t["step_apps"])
     info(t["apps_help"])
     catalog = load_catalog()
     all_apps = list(catalog.get("homebrews") or [])
     required_apps = [app for app in all_apps if app.get("required", False)]
     optional_apps = [app for app in all_apps if not app.get("required", False)]
-    chosen_optional, jump_to_downloads = choose_optional_apps(optional_apps, t)
-    chosen_apps = required_apps + chosen_optional
+    chosen_optional, jump_to_downloads, local_requested = choose_optional_apps(optional_apps, t)
+    local_apps = collect_local_apps(t, list(args.local_elf), interactive=local_requested)
+    chosen_apps = required_apps + chosen_optional + local_apps
 
     resolver = GitHubReleaseResolver()
     selected: list[tuple[dict[str, Any], ResolvedRelease | None]] = []
@@ -393,6 +587,10 @@ def main() -> None:
         source_type = str(app.get("source_type") or "github")
         if source_type == "manual":
             info(t["manual_selected"].format(name=app["name"]))
+            selected.append((app, None))
+            continue
+        if source_type == "local":
+            ok(t["local_selected"].format(name=app["name"]))
             selected.append((app, None))
             continue
 
@@ -412,21 +610,40 @@ def main() -> None:
         selected.append((app, chosen))
 
     plan: dict[str, Any] = {
-        "schema_version": 6,
+        "schema_version": 7,
         "language": language,
         "output_root": str(output_root),
         "memory_card": card,
         "storage": storage,
+        "boot": boot,
+        "workflow": workflow,
+        "existing_apps": existing_apps,
         "homebrews": [app_plan_entry(app, resolved) for app, resolved in selected],
         "downloads": {},
         "package": None,
     }
+    for app, _resolved in selected:
+        if str(app.get("source_type") or "github") != "local":
+            continue
+        local_path = Path(str(app.get("local_path") or ""))
+        plan["downloads"][app["id"]] = {
+            "asset_path": str(local_path),
+            "extracted_path": None,
+            "extracted": True,
+            "elf_candidates": [str(local_path)],
+            "warning": None,
+            "local": True,
+        }
+    findings = check_compatibility(plan)
+    plan["compatibility"] = findings
     write_plan(plan, plan_path)
 
     if not jump_to_downloads:
         section(4, TOTAL_STEPS, t["step_summary"])
         info(f"{t['card']}: {card['name']}")
         info(f"{t['selected_storage']}: {storage['name']}")
+        info(t["boot_selected"].format(method=boot.get("name", boot.get("id"))))
+        info(t["workflow_selected"].format(mode=t["workflow_update"] if workflow_mode == "update" else t["workflow_new"]))
         if storage.get("apa_partition"):
             info(t["hdd_apa_selected"].format(partition=storage["apa_partition"]))
         print(f"  {t['selected_apps']}:")
@@ -435,8 +652,11 @@ def main() -> None:
             if app.get("required", False):
                 continue
             optional_count += 1
-            if str(app.get("source_type") or "github") == "manual":
+            source_type = str(app.get("source_type") or "github")
+            if source_type == "manual":
                 info(f"{app['name']} [{t['manual_marker']}]")
+            elif source_type == "local":
+                ok(f"{app['name']} [{t['local_marker']}]")
             else:
                 version = resolved.version if resolved else "?"
                 ok(f"{app['name']} {version}")
@@ -446,9 +666,15 @@ def main() -> None:
     else:
         ok(t["jumping_downloads"])
 
-    resolved_selected = [(app, resolved) for app, resolved in selected if resolved is not None]
+    _show_compatibility(findings, t)
+
+    resolved_selected = [
+        (app, resolved) for app, resolved in selected
+        if resolved is not None and str(app.get("source_type") or "github") != "local"
+    ]
+    local_selected = [app for app, _resolved in selected if str(app.get("source_type") or "github") == "local"]
     should_download = False
-    if not args.no_download and resolved_selected:
+    if not args.no_download and (resolved_selected or local_selected):
         should_download = True if jump_to_downloads else yes_no(t["download"], default=True)
 
     dependency_ready = True
@@ -489,6 +715,9 @@ def main() -> None:
                     else:
                         ok(t["dependency_ok"])
 
+            for app in local_selected:
+                ok(t["local_prepared"].format(name=app["name"]))
+
             for app, resolved in resolved_selected:
                 info(t["downloading"].format(name=app["name"], version=resolved.version))
                 try:
@@ -511,6 +740,12 @@ def main() -> None:
                 manifest = build_package(plan, output_root)
                 ready, missing = package_status(manifest, plan)
                 save_package_status(manifest, ready, missing)
+                manifest["report"] = write_installation_report(
+                    Path(str(manifest["package_root"])), plan, manifest, findings
+                )
+                (Path(str(manifest["package_root"])) / "manifest.json").write_text(
+                    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
                 plan["package"] = manifest
                 write_plan(plan, plan_path)
                 package_path = display_path(Path(str(manifest["package_root"])))
@@ -518,6 +753,30 @@ def main() -> None:
                     success_box(t["package_ready"], [t["package_path"].format(path=package_path)])
                     for package_warning in manifest.get("warnings", []):
                         warn(t["package_warning"].format(warning=package_warning))
+                    if workflow_mode == "update" and yes_no(t["apply_update"], default=True):
+                        try:
+                            update_result = apply_package_update(
+                                Path(str(manifest["package_root"])),
+                                Path(str(workflow["memory_card_root"])),
+                                Path(str(workflow["storage_root"])),
+                                remove_folders=list(workflow.get("remove_folders") or []),
+                                backup_parent=output_root / "Ps2Installer_Backups",
+                                copy_configs=bool(workflow.get("rebuild_menus", True)),
+                                copy_boot_elf=bool(workflow.get("copy_boot_elf", False)),
+                            )
+                        except UpdateError as exc:
+                            error(t["update_failed"].format(error=exc))
+                        else:
+                            manifest["update"] = update_result
+                            manifest["report"] = write_installation_report(
+                                Path(str(manifest["package_root"])), plan, manifest, findings, update_result
+                            )
+                            (Path(str(manifest["package_root"])) / "manifest.json").write_text(
+                                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                            )
+                            plan["package"] = manifest
+                            write_plan(plan, plan_path)
+                            ok(t["update_applied"].format(backup=update_result["backup_root"]))
                 else:
                     error(t["package_incomplete"])
                     warn(t["missing"].format(items=", ".join(missing)))

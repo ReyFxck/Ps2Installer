@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from src.app import _sanitize_downloads, package_status, parse_multi_selection
+from src.app import _local_app_from_path, _sanitize_downloads, package_status, parse_app_selection, parse_multi_selection
 
 
 class CliPackageStatusTests(unittest.TestCase):
@@ -81,6 +81,32 @@ class MultiSelectionTests(unittest.TestCase):
     def test_invalid_index_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             parse_multi_selection("1,99", 3, [])
+
+
+class ExtendedSelectionTests(unittest.TestCase):
+    def test_l_requests_local_import_without_losing_defaults(self) -> None:
+        selected, jump, local = parse_app_selection("L", 4, [0, 2])
+        self.assertEqual(selected, [0, 2])
+        self.assertFalse(jump)
+        self.assertTrue(local)
+
+    def test_numbers_local_and_p_can_be_combined(self) -> None:
+        selected, jump, local = parse_app_selection("1, 3, L, P", 5, [])
+        self.assertEqual(selected, [0, 2])
+        self.assertTrue(jump)
+        self.assertTrue(local)
+
+    def test_local_elf_entry_targets_both_menus(self) -> None:
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "MYAPP.ELF"
+            path.write_bytes(b"elf")
+            text = {"local_invalid": "bad {path}", "local_name": "Name"}
+            app = _local_app_from_path(path, text, ask_name=False)
+            self.assertEqual(app["source_type"], "local")
+            self.assertTrue(app["menu_targets"]["opl"])
+            self.assertTrue(app["menu_targets"]["osdmenu"])
 
 
 class TemporaryDownloadPlanTests(unittest.TestCase):

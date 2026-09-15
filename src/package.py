@@ -6,6 +6,11 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .boot import write_boot_guide
+from .compatibility import check_compatibility
+from .recipes import install_mode_for, recipe_for, recipe_notes, write_recipe_guide
+from .report import write_installation_report
+
 
 class PackageError(RuntimeError):
     """Raised when the ready-to-copy package cannot be generated."""
@@ -185,7 +190,7 @@ def _install_app_payload(
     download: dict[str, Any],
     destination: Path,
 ) -> tuple[Path | None, str]:
-    mode = str((app.get("install") or {}).get("mode") or "single-elf")
+    mode = install_mode_for(app)
     source = _pick_elf(app, download)
 
     if mode == "single-elf":
@@ -227,10 +232,15 @@ def _write_manual_sources(package_root: Path, plan: dict[str, Any]) -> list[dict
     for app in plan.get("homebrews", []) or []:
         if str(app.get("source_type") or "github") != "manual":
             continue
+        note_parts = [str(app.get("manual_note") or "Manual download/setup required.")]
+        note_parts.extend(recipe_notes(app))
+        required_files = recipe_for(app).get("required_user_files") or []
+        if required_files:
+            note_parts.append("User-supplied files required: " + ", ".join(str(value) for value in required_files))
         manual.append({
             "name": str(app.get("name") or app.get("id") or "Homebrew"),
             "url": str(app.get("source_url") or ""),
-            "note": str(app.get("manual_note") or "Manual download/setup required."),
+            "note": " ".join(part for part in note_parts if part.strip()),
         })
 
     if not manual:
@@ -480,6 +490,7 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
             "elf": elf_name,
             "relative_path": relative_path,
             "install_mode": install_mode,
+            "recipe": recipe_for(app).get("id"),
             "menu_targets": menu_targets,
         }
         if menu_targets.get("opl") and installed_elf is not None:
@@ -488,6 +499,28 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
                 f"title={display_name}\nboot={boot_path}\n",
                 encoding="utf-8",
             )
+
+    # In update mode, keep existing APPS visible when rebuilding the menu.
+    workflow = plan.get("workflow") or {}
+    if str(workflow.get("mode") or "new") == "update" and bool(workflow.get("rebuild_menus", True)):
+        removed_folders = {str(value).lower() for value in workflow.get("remove_folders", []) or []}
+        selected_folders = {str(item.get("folder") or "").lower() for item in installed_apps.values()}
+        for existing in plan.get("existing_apps", []) or []:
+            folder = str(existing.get("folder") or "")
+            if not folder or folder.lower() in removed_folders or folder.lower() in selected_folders:
+                continue
+            existing_id = str(existing.get("id") or f"existing:{folder}")
+            installed_apps[existing_id] = {
+                "name": existing.get("name") or folder,
+                "display_name": existing.get("name") or folder,
+                "folder": folder,
+                "elf": existing.get("elf"),
+                "relative_path": existing.get("relative_path"),
+                "install_mode": "existing",
+                "recipe": "existing-installation",
+                "menu_targets": dict(existing.get("menu_targets") or {"osdmenu": True, "opl": False}),
+                "existing": True,
+            }
 
     ps2bbl_manifest: dict[str, Any] | None = None
     ps2bbl_download = downloads.get("ps2bbl") or {}
@@ -518,9 +551,11 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
 
     manual_sources = _write_manual_sources(package_root, plan)
     _write_readmes(package_root, mc_root, storage_root, plan, layout, warnings)
+    boot_manifest = write_boot_guide(package_root, plan, ps2bbl_manifest)
+    compatibility = check_compatibility(plan)
 
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "package_root": str(package_root),
         "memory_card_folder": mc_folder,
         "storage_folder": str(layout["folder"]),
@@ -529,11 +564,15 @@ def build_package(plan: dict[str, Any], output_root: Path) -> dict[str, Any]:
         "osdmenu_prefix": layout.get("osd_prefix"),
         "ps2bbl_prefix": layout.get("ps2bbl_prefix"),
         "ps2bbl": ps2bbl_manifest,
+        "boot": boot_manifest,
         "installed_apps": installed_apps,
         "manual_sources": manual_sources,
         "opl_hdd_config_helper": apa_helper,
+        "compatibility": compatibility,
         "warnings": warnings,
     }
+    manifest["recipes_guide"] = write_recipe_guide(package_root, plan)
+    manifest["report"] = write_installation_report(package_root, plan, manifest, compatibility)
     (package_root / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )

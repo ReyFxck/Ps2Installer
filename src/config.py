@@ -260,3 +260,111 @@ TEXT["es"].update({
 TEXT["pt-BR"]["output_help"] = "Escolha onde selection.json e o pacote final serão criados. Downloads/extracões são temporários por padrão."
 TEXT["en"]["output_help"] = "Choose where selection.json and the final package will be created. Downloads/extractions are temporary by default."
 TEXT["es"]["output_help"] = "Elige dónde se crearán selection.json y el paquete final. Las descargas/extracciones son temporales por defecto."
+
+# Workflow/boot/local import/update UX (schema v7).
+TEXT["pt-BR"].update({
+    "workflow_mode": "O que você quer fazer?",
+    "workflow_new": "Criar um pacote novo",
+    "workflow_update": "Atualizar uma instalação existente (com backup)",
+    "workflow_selected": "Modo: {mode}",
+    "boot_method": "Como o PS2BBL será iniciado?",
+    "boot_existing": "ELF existente/manual (FMCB, wLaunchELF, OPL, FreeDVDBoot etc.)",
+    "boot_opentuna": "OpenTuna",
+    "boot_dev1": "Modchip DEV1 (mc0:/BOOT/BOOT.ELF)",
+    "boot_system_update": "System Update / KELF no Memory Card",
+    "boot_hdd_kelf": "Boot por HDD / KELF (HSYSTEM.XLF)",
+    "boot_selected": "Boot do PS2BBL: {method}",
+    "update_mc_path": "Raiz do Memory Card/VMC existente",
+    "update_storage_path": "Raiz do armazenamento APPS existente",
+    "existing_apps_found": "Apps existentes detectados: {count}",
+    "remove_existing_prompt": "Remover algum app existente nesta atualização?",
+    "remove_help": "Digite números separados por vírgula (ou A para todos). Enter não remove nada. Tudo removido é salvo no backup primeiro.",
+    "rebuild_menus": "Reconstruir PS2BBL.INI/OSDMENU.CNF preservando os APPS existentes detectados?",
+    "local_marker": "local",
+    "local_help": "Importe um ou mais ELFs locais. Enter encerra a importação.",
+    "local_path": "Caminho do ELF local (Enter para terminar)",
+    "local_name": "Nome que aparecerá nos menus",
+    "local_invalid": "Arquivo ELF local inválido: {path}",
+    "local_added": "ELF local adicionado: {name} <- {path}",
+    "local_more": "Adicionar outro ELF local?",
+    "local_selected": "{name}: ELF local selecionado.",
+    "local_prepared": "{name}: ELF local pronto para empacotar",
+    "compatibility_header": "Compatibilidade / avisos conhecidos",
+    "apply_update": "Aplicar agora o pacote na instalação existente? Um backup será criado antes.",
+    "update_applied": "Instalação existente atualizada. Backup: {backup}",
+    "update_failed": "Falha ao atualizar a instalação existente: {error}",
+})
+
+TEXT["en"].update({
+    "workflow_mode": "What do you want to do?",
+    "workflow_new": "Create a new package",
+    "workflow_update": "Update an existing installation (with backup)",
+    "workflow_selected": "Mode: {mode}",
+    "boot_method": "How will PS2BBL be started?",
+    "boot_existing": "Existing/manual ELF entry (FMCB, wLaunchELF, OPL, FreeDVDBoot etc.)",
+    "boot_opentuna": "OpenTuna",
+    "boot_dev1": "Modchip DEV1 (mc0:/BOOT/BOOT.ELF)",
+    "boot_system_update": "Memory Card System Update / KELF",
+    "boot_hdd_kelf": "HDD / KELF boot (HSYSTEM.XLF)",
+    "boot_selected": "PS2BBL boot: {method}",
+    "update_mc_path": "Existing Memory Card/VMC root",
+    "update_storage_path": "Existing APPS storage root",
+    "existing_apps_found": "Existing apps detected: {count}",
+    "remove_existing_prompt": "Remove any existing app during this update?",
+    "remove_help": "Enter comma-separated numbers (or A for all). Enter removes nothing. Removed data is backed up first.",
+    "rebuild_menus": "Rebuild PS2BBL.INI/OSDMENU.CNF while preserving detected existing APPS?",
+    "local_marker": "local",
+    "local_help": "Import one or more local ELF files. Press Enter to finish importing.",
+    "local_path": "Local ELF path (Enter to finish)",
+    "local_name": "Menu display name",
+    "local_invalid": "Invalid local ELF file: {path}",
+    "local_added": "Local ELF added: {name} <- {path}",
+    "local_more": "Add another local ELF?",
+    "local_selected": "{name}: local ELF selected.",
+    "local_prepared": "{name}: local ELF ready to package",
+    "compatibility_header": "Compatibility / known warnings",
+    "apply_update": "Apply the package to the existing installation now? A backup will be created first.",
+    "update_applied": "Existing installation updated. Backup: {backup}",
+    "update_failed": "Failed to update the existing installation: {error}",
+})
+
+TEXT["es"].update({
+    "workflow_mode": "¿Qué quieres hacer?",
+    "workflow_new": "Crear un paquete nuevo",
+    "workflow_update": "Actualizar una instalación existente (con copia de seguridad)",
+    "workflow_selected": "Modo: {mode}",
+    "boot_method": "¿Cómo se iniciará PS2BBL?",
+    "boot_existing": "Entrada ELF existente/manual (FMCB, wLaunchELF, OPL, FreeDVDBoot etc.)",
+    "boot_opentuna": "OpenTuna",
+    "boot_dev1": "Modchip DEV1 (mc0:/BOOT/BOOT.ELF)",
+    "boot_system_update": "System Update / KELF en Memory Card",
+    "boot_hdd_kelf": "Arranque HDD / KELF (HSYSTEM.XLF)",
+    "boot_selected": "Arranque PS2BBL: {method}",
+    "update_mc_path": "Raíz de Memory Card/VMC existente",
+    "update_storage_path": "Raíz del almacenamiento APPS existente",
+    "existing_apps_found": "Apps existentes detectadas: {count}",
+    "remove_existing_prompt": "¿Eliminar alguna app existente durante esta actualización?",
+    "remove_help": "Introduce números separados por comas (o A para todas). Enter no elimina nada. Todo se copia al backup antes.",
+    "rebuild_menus": "¿Reconstruir PS2BBL.INI/OSDMENU.CNF preservando las APPS existentes detectadas?",
+    "local_marker": "local",
+    "local_help": "Importa uno o más ELF locales. Enter termina la importación.",
+    "local_path": "Ruta del ELF local (Enter para terminar)",
+    "local_name": "Nombre mostrado en los menús",
+    "local_invalid": "Archivo ELF local inválido: {path}",
+    "local_added": "ELF local añadido: {name} <- {path}",
+    "local_more": "¿Añadir otro ELF local?",
+    "local_selected": "{name}: ELF local seleccionado.",
+    "local_prepared": "{name}: ELF local listo para empaquetar",
+    "compatibility_header": "Compatibilidad / avisos conocidos",
+    "apply_update": "¿Aplicar ahora el paquete a la instalación existente? Se creará un backup antes.",
+    "update_applied": "Instalación existente actualizada. Backup: {backup}",
+    "update_failed": "Error al actualizar la instalación existente: {error}",
+})
+
+TEXT["pt-BR"]["multi_help"] = "Ex.: 1,2 ou 1, 2. Enter usa os padrões. A seleciona todos. L importa ELF local. P pula aos Downloads; 1,5,L,P também funciona."
+TEXT["en"]["multi_help"] = "Example: 1,2 or 1, 2. Enter uses defaults. A selects all. L imports a local ELF. P jumps to Downloads; 1,5,L,P also works."
+TEXT["es"]["multi_help"] = "Ej.: 1,2 o 1, 2. Enter usa los predeterminados. A selecciona todos. L importa un ELF local. P salta a Descargas; 1,5,L,P también funciona."
+
+TEXT["pt-BR"]["update_boot_elf"] = "Atualizar também BOOT/BOOT.ELF no Memory Card? (pode ser outro launcher em instalações antigas)"
+TEXT["en"]["update_boot_elf"] = "Also update BOOT/BOOT.ELF on the Memory Card? (older setups may use that path for another launcher)"
+TEXT["es"]["update_boot_elf"] = "¿Actualizar también BOOT/BOOT.ELF en la Memory Card? (instalaciones antiguas pueden usar esa ruta para otro launcher)"

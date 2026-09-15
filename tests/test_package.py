@@ -151,6 +151,60 @@ class PackageBuilderTests(unittest.TestCase):
             self.assertEqual((storage / "APPS" / "Bundle" / "settings.cfg").read_text(), "keep-me")
             self.assertTrue((storage / "APPS" / "Bundle" / "bundle.elf").is_file())
 
+    def test_package_writes_boot_recipe_and_installation_reports(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            plan["boot"] = {"id": "dev1"}
+            manifest = build_package(plan, root)
+            package = Path(manifest["package_root"])
+            self.assertTrue((package / "BOOT_METHOD.txt").is_file())
+            self.assertTrue((package / "INSTALL_RECIPES.txt").is_file())
+            self.assertTrue((package / "INSTALLATION_REPORT.txt").is_file())
+            self.assertEqual(manifest["boot"]["id"], "dev1")
+
+    def test_update_rebuild_keeps_detected_existing_app_in_osdmenu(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            plan["workflow"] = {"mode": "update", "rebuild_menus": True, "remove_folders": []}
+            plan["existing_apps"] = [{
+                "id": "existing:SMS",
+                "name": "SMS",
+                "folder": "SMS",
+                "elf": "SMS.ELF",
+                "relative_path": "APPS/SMS/SMS.ELF",
+                "menu_targets": {"osdmenu": True, "opl": True},
+            }]
+            manifest = build_package(plan, root)
+            mc = Path(manifest["package_root"]) / manifest["memory_card_folder"]
+            cnf = (mc / "SYS-CONF" / "OSDMENU.CNF").read_text()
+            self.assertIn("usb:/APPS/SMS/SMS.ELF", cnf)
+            self.assertTrue(manifest["installed_apps"]["existing:SMS"]["existing"])
+
+    def test_local_elf_is_packaged_and_gets_title_cfg(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            plan = _base_plan(root, {"id": "usb", "name": "USB"})
+            local = root / "MyLocal.ELF"
+            local.write_bytes(b"local")
+            plan["homebrews"].append({
+                "id": "local-mylocal",
+                "name": "My Local",
+                "source_type": "local",
+                "folder": "My-Local",
+                "elf_names": ["MyLocal.ELF"],
+                "menu_targets": {"osdmenu": True, "opl": True},
+                "install": {"mode": "single-elf"},
+                "recipe": {"id": "local-elf", "mode": "single-elf"},
+            })
+            plan["downloads"]["local-mylocal"] = {"elf_candidates": [str(local)], "extracted": True}
+            manifest = build_package(plan, root)
+            storage = Path(manifest["package_root"]) / manifest["storage_folder"]
+            app_dir = storage / "APPS" / "My-Local"
+            self.assertEqual((app_dir / "MyLocal.ELF").read_bytes(), b"local")
+            self.assertIn("boot=MyLocal.ELF", (app_dir / "title.cfg").read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

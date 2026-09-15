@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "homebrews": [
     {
       "id": "ps2bbl",
@@ -32,7 +32,8 @@
       },
       "install": {
         "mode": "archive-tree"
-      }
+      },
+      "recipe": "ps2bbl-core"
     },
     {
       "id": "osdmenu",
@@ -429,7 +430,8 @@
       },
       "install": {
         "mode": "collection"
-      }
+      },
+      "recipe": "retroarch-bundle"
     },
     {
       "id": "libretro-fceumm",
@@ -1154,7 +1156,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "popstarter-manual"
     },
     {
       "id": "popsloader",
@@ -1175,7 +1178,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "popsloader-manual"
     },
     {
       "id": "ember",
@@ -1196,7 +1200,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "ember-manual"
     },
     {
       "id": "project-titan",
@@ -1217,7 +1222,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "project-titan-manual"
     },
     {
       "id": "retrolauncher",
@@ -1238,7 +1244,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "retrolauncher-manual"
     },
     {
       "id": "pgen",
@@ -1280,7 +1287,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "neutrino-manual"
     },
     {
       "id": "nhddl",
@@ -1301,7 +1309,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "nhddl-manual"
     },
     {
       "id": "wopl",
@@ -1322,7 +1331,8 @@
       },
       "install": {
         "mode": "manual"
-      }
+      },
+      "recipe": "wopl-manual"
     },
     {
       "id": "snesstation",
