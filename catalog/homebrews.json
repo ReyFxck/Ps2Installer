@@ -1,6 +1,30 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "homebrews": [
+    {
+      "id": "ps2bbl",
+      "name": "PS2BBL",
+      "repository": "israpps/PlayStation2-Basic-BootLoader",
+      "required": true,
+      "default": true,
+      "channel_policy": "development-build",
+      "recommended_channel": "development",
+      "folder": "PS2BBL",
+      "elf_names": ["COMPRESSED_PS2BBL.ELF"],
+      "channels": {
+        "development": {
+          "label": "Development (official)",
+          "release_kind": "development",
+          "tag": "latest",
+          "asset_patterns": ["^PS2BBL\\.7z$"],
+          "fallback_version_prefix": "dev"
+        }
+      },
+      "menu_targets": {
+        "osdmenu": false,
+        "opl": false
+      }
+    },
     {
       "id": "osdmenu",
       "name": "OSDMenu",
