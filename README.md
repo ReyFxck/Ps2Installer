@@ -30,6 +30,37 @@ Large storage
 
 The same `APPS/` copy is used by OSDMenu and, when applicable, OPL through generated `title.cfg` files.
 
+## Requirements
+
+Before cloning and running Ps2Installer, install:
+
+- **Python 3.10 or newer** — required to run the installer: https://www.python.org/downloads/
+- **Git** — required when using the `git clone` instructions: https://git-scm.com/downloads
+- an internet connection — required to resolve and download current homebrew releases.
+
+On Windows, enable **Add Python to PATH** in the Python installer. After installation, you can verify both tools with:
+
+```bash
+python --version
+git --version
+```
+
+On systems where Python is exposed as `python3`, use:
+
+```bash
+python3 --version
+```
+
+Git is not required if you download the repository as a ZIP from GitHub instead of cloning it.
+
+After cloning or extracting the repository, install the Python dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+`py7zr`, used to extract `.7z` release packages, is installed through this requirements file.
+
 ## Current status
 
 The current prototype already:
@@ -58,8 +89,6 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-Python **3.10+** is recommended.
-
 Useful modes:
 
 ```bash
@@ -69,8 +98,6 @@ python main.py --no-package
 python main.py --offline
 python -m unittest discover -s tests -v
 ```
-
-`py7zr` is used for `.7z` extraction. ZIP and direct ELF handling use the Python standard library.
 
 If the unauthenticated GitHub API rate limit is reached, an optional `GITHUB_TOKEN` environment variable can be supplied.
 
