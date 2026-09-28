@@ -1,0 +1,63 @@
+name: Build Mesen PS2 ELF
+
+on:
+  push:
+    branches:
+      - ci/mesen-ps2-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ps2dev/ps2dev:latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout CI payload
+        uses: actions/checkout@v4
+
+      - name: Install build helpers
+        run: apk add --no-cache build-base git xz coreutils file
+
+      - name: Reassemble PS2 overlay
+        shell: sh
+        run: |
+          cat .ci/mesen-overlay.part00 .ci/mesen-overlay.part01 .ci/mesen-overlay.part02 .ci/mesen-overlay.part03 .ci/mesen-overlay.part04 > /tmp/mesen-overlay.b64
+          echo "c4bb5e7b91820c08590f0ddaf50964a07950b2b29aec4ce54597f1295cb6b0e7  /tmp/mesen-overlay.b64" | sha256sum -c -
+          base64 -d /tmp/mesen-overlay.b64 > /tmp/mesen-overlay.tar.xz
+          echo "776beb14e76a4087af8e1238fc2d289f8a5f2186a1c9cf4bf741fbee6d1e06d7  /tmp/mesen-overlay.tar.xz" | sha256sum -c -
+          mkdir -p /tmp/mesen-overlay
+          tar -xJf /tmp/mesen-overlay.tar.xz -C /tmp/mesen-overlay
+
+      - name: Recreate Mesen 2.1.1 PS2 tree
+        shell: sh
+        run: |
+          mkdir -p _mesen/ps2
+          git clone --filter=blob:none https://github.com/SourMesen/Mesen2.git _mesen/ps2/src
+          git -C _mesen/ps2/src checkout 137ae7ce3bf3f539d007e2c4ef3cb3b6c97672a1
+          cp -a /tmp/mesen-overlay/overlay/. _mesen/ps2/src/
+          cp -a /tmp/mesen-overlay/ps2/. _mesen/ps2/
+
+      - name: Build R5900 ELF
+        run: make -C _mesen/ps2 -j2
+
+      - name: Verify ELF
+        shell: sh
+        run: |
+          test -s _mesen/ps2/mesence-ps2.elf
+          file _mesen/ps2/mesence-ps2.elf
+          ls -lh _mesen/ps2/mesence-ps2.elf
+          if command -v mips64r5900el-ps2-elf-readelf >/dev/null 2>&1; then
+            mips64r5900el-ps2-elf-readelf -h _mesen/ps2/mesence-ps2.elf
+          fi
+
+      - name: Upload PS2 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mesen-PS2-${{ github.sha }}
+          path: |
+            _mesen/ps2/mesence-ps2.elf
+            _mesen/ps2/audsrv.irx
+          if-no-files-found: error
